@@ -53,7 +53,28 @@
 - **데이터 위치:** `overlay/src/core/secret-formula/mod-rewards.js` 에 보상이 한 줄에 하나씩 있어서
   값이나 메모를 바로 고칠 수 있습니다.
 
-## 사용법
+## 휴대폰으로 플레이하기
+
+푸시할 때마다 GitHub Actions(`.github/workflows/build-game.yml`)가 모드를 적용해 게임을 빌드합니다.
+저장소가 **공개(public)** 일 때는 빌드 결과를 `gh-pages` 브랜치에 올려 웹사이트로 띄웁니다.
+무료 GitHub 계정은 비공개 저장소에서 GitHub Pages를 쓸 수 없어서, 비공개일 때는 빌드만 합니다.
+
+한 번만 설정하면 됩니다. 저장소 설정은 GitHub 앱보다 휴대폰 브라우저로 github.com에 들어가서 바꾸는 게 확실합니다.
+
+1. 저장소 **Settings → General → 맨 아래 Danger Zone → Change repository visibility → Public**
+2. **Actions** 탭 → **Build game** → **Run workflow** (또는 아무 커밋이나 푸시)
+3. 빌드가 끝나면(3~5분) **Settings → Pages → Build and deployment**
+   - Source: **Deploy from a branch**
+   - Branch: **gh-pages**, 폴더 **/ (root)** → **Save**
+4. 1~2분 뒤 **https://rampas200.github.io/-----/** 에서 플레이
+
+팁:
+- 화면은 PC와 같은 배치를 휴대폰 크기로 줄여서 보여 줍니다. **가로 모드**가 보기 편하고, 두 손가락으로 확대할 수 있습니다.
+- 업적 툴팁은 업적을 한 번 탭하면 나옵니다.
+- 브라우저 메뉴의 **홈 화면에 추가**를 쓰면 앱처럼 전체 화면으로 열립니다.
+- 세이브는 그 브라우저에 저장됩니다. 기기를 바꿀 때는 Options → Saving의 Export/Import를 쓰세요.
+
+## 사용법 (PC에서 직접 실행)
 
 필요한 것: [Git](https://git-scm.com/), [Node.js](https://nodejs.org/) (LTS 권장)
 
@@ -79,8 +100,10 @@ overlay/               원본에 새로 추가하는 파일
   src/components/ModBonusLine.vue                    툴팁/챌린지 상자의 "모드 보너스" 줄
   src/components/tabs/mod-rewards/ModRewardsTab.vue  Achievements → Mod Bonuses 탭 화면
   src/components/tabs/options-mod/OptionsModTab.vue  Options → Mod 탭 화면
+  public/manifest.webmanifest                        홈 화면에 추가할 때 쓰는 앱 정보
 scripts/apply-mod.sh   원본 받기 + 패치 적용 + overlay 복사
 scripts/export-mod.sh  game/ 폴더에서 고친 내용을 patches/, overlay/로 되돌려 저장
+.github/workflows/build-game.yml  모드 적용 + 빌드 + (공개 저장소일 때) gh-pages 배포
 ```
 
 패치가 고치는 원본 파일:
@@ -100,6 +123,7 @@ scripts/export-mod.sh  game/ 폴더에서 고친 내용을 patches/, overlay/로
 | `src/core/secret-formula/news.js` | 한국어 뉴스 목록 추가 |
 | `src/core/secret-formula/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses 탭 추가 |
 | `src/core/globals.js` | `ADMod`, `ModRewards`를 전역으로 노출 |
+| `public/index.html` | 모바일 화면 맞춤(viewport), 홈 화면 앱 설정 |
 
 ## 모드 고치기
 
