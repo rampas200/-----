@@ -1,3 +1,26 @@
+diff --git a/public/index.html b/public/index.html
+index da4a1a8..0b8e740 100644
+--- a/public/index.html
++++ b/public/index.html
+@@ -2,8 +2,17 @@
+ <html lang="en">
+ <head>
+   <meta charset="utf-8">
+-  <title>Antimatter Dimensions</title>
++  <title>Antimatter Dimensions (AD Mod)</title>
+   <link rel="icon" type="image/png" href="icon.png">
++  <!-- [AD Mod] 모바일: 게임 화면은 폭 1000px 이상이 필요하고 페이지 스크롤이 막혀 있어서,
++       1100px 폭으로 배치한 뒤 휴대폰 화면에 맞게 축소해서 보여준다. 손가락으로 확대할 수 있다. -->
++  <meta name="viewport" content="width=1100, user-scalable=yes">
++  <meta name="mobile-web-app-capable" content="yes">
++  <meta name="apple-mobile-web-app-capable" content="yes">
++  <meta name="apple-mobile-web-app-title" content="AD Mod">
++  <meta name="theme-color" content="#000000">
++  <link rel="apple-touch-icon" href="icon.png">
++  <link rel="manifest" href="manifest.webmanifest">
+   <meta name="Antimatter Dimensions" content="A game about huge numbers and watching them go up." >
+   <link href="https://fonts.googleapis.com/css?family=PT+Mono" rel="stylesheet">
+   <link rel="stylesheet" type="text/css" href="stylesheets/fontawesome/css/all.css">
 diff --git a/src/components/tabs/eternity-challenges/EternityChallengeBox.vue b/src/components/tabs/eternity-challenges/EternityChallengeBox.vue
 index 2d87893..34be84c 100644
 --- a/src/components/tabs/eternity-challenges/EternityChallengeBox.vue

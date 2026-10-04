@@ -1,0 +1,59 @@
+# 원본 Antimatter Dimensions에 AD Mod를 적용해서 빌드한다.
+# - 빌드 결과(dist)는 매번 Actions 아티팩트 "ad-mod-game"으로 올라간다.
+# - 저장소가 공개(public)일 때만 gh-pages 브랜치로 배포한다.
+#   Settings > Pages 에서 "Deploy from a branch: gh-pages / (root)" 를 고르면 휴대폰 브라우저로 바로 플레이할 수 있다.
+name: Build game
+
+on:
+  push:
+    branches-ignore:
+      - gh-pages
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-game-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Apply mod and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 원본 게임의 배포 워크플로와 같은 Node 버전
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "14"
+
+      - name: Fetch upstream and apply mod
+        run: scripts/apply-mod.sh game
+
+      - name: Install packages
+        working-directory: game
+        run: npm ci
+
+      - name: Build
+        working-directory: game
+        run: npm run build:release
+
+      - name: Remove source maps
+        run: find game/dist -name "*.map" -delete
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ad-mod-game
+          path: game/dist
+          retention-days: 14
+
+      - name: Deploy to gh-pages (public repository only)
+        if: github.event.repository.private == false
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: game/dist
+          single-commit: true
