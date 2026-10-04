@@ -1,7 +1,8 @@
 # 원본 Antimatter Dimensions에 AD Mod를 적용해서 빌드한다.
 # - 빌드 결과(dist)는 매번 Actions 아티팩트 "ad-mod-game"으로 올라간다.
 # - 휴대폰 화면 크기로 게임을 열어 모드 기능을 자동 확인한다 (scripts/smoke-test.mjs, 스크린샷은 "smoke-screenshots").
-# - 저장소가 공개(public)일 때만 gh-pages 브랜치로 배포한다.
+# - 저장소가 공개(public)일 때만 gh-pages 브랜치로 배포한다. 공개 여부는 실행할 때마다 API로 확인한다
+#   (Re-run은 처음 실행 때의 이벤트 정보를 재사용하므로 github.event.repository.private 를 믿을 수 없다).
 #   Settings > Pages 에서 "Deploy from a branch: gh-pages / (root)" 를 고르면 휴대폰 브라우저로 바로 플레이할 수 있다.
 name: Build game
 
@@ -69,8 +70,18 @@ jobs:
           path: smoke-screenshots
           retention-days: 14
 
+      - name: Check repository visibility now
+        id: visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "private=$(gh api "repos/${{ github.repository }}" --jq .private)" >> "$GITHUB_OUTPUT"
+
+      # 빌드 결과는 그대로 서비스하면 되므로 GitHub Pages의 Jekyll 처리를 끈다
+      - name: Disable Jekyll on GitHub Pages
+        run: touch game/dist/.nojekyll
+
       - name: Deploy to gh-pages (public repository only)
-        if: github.event.repository.private == false
+        if: steps.visibility.outputs.private == 'false'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages

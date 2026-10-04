@@ -67,10 +67,13 @@
 
 1. 저장소 **Settings → General → 맨 아래 Danger Zone → Change repository visibility → Public**
 2. **Actions** 탭 → **Build game** → **Run workflow** (또는 아무 커밋이나 푸시)
-3. 빌드가 끝나면(3~5분) **Settings → Pages → Build and deployment**
+3. 빌드가 끝나면(3~5분) 브랜치 목록에 **gh-pages** 가 생깁니다. **Settings → Pages → Build and deployment** 에서
    - Source: **Deploy from a branch**
    - Branch: **gh-pages**, 폴더 **/ (root)** → **Save**
 4. 1~2분 뒤 **https://rampas200.github.io/-----/** 에서 플레이
+
+**게임 대신 README 같은 문서 화면이 보이면** Pages가 `gh-pages` 가 아닌 다른 브랜치(예: `main`, `ccr-…`)를 띄우고 있는 것입니다.
+3번에서 Branch를 **gh-pages** 로 바꾸고 저장하세요. 바꾼 뒤에도 예전 화면이 보이면 1~2분 기다렸다가 새로고침하세요.
 
 팁:
 - 화면은 PC와 같은 배치를 휴대폰 크기로 줄여서 보여 줍니다. **가로 모드**가 보기 편하고, 두 손가락으로 확대할 수 있습니다.
