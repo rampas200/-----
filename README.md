@@ -14,6 +14,7 @@
 | 한국어 뉴스 | 화면 위 뉴스 티커에 한국어 메시지 20개를 추가합니다. 끄면 나오지 않습니다. |
 | 업적/챌린지 보너스 보상 | 아래 [보너스 보상](#보너스-보상) 참고. 끄면 원래 게임 밸런스로 돌아갑니다. |
 | 모드 업그레이드 효과 | 아래 [모드 업그레이드](#모드-업그레이드) 참고. 꺼도 해금 기록은 남습니다. |
+| 모드 시간 연구 | 아래 [모드 시간 연구](#모드-시간-연구) 참고. 끄면 트리에서 숨고 살 수 없습니다. |
 | 설정 초기화 | 모드 설정을 기본값으로 되돌립니다. |
 
 - 모드 설정은 세이브 파일이 아니라 브라우저 `localStorage`(`ADModSettings` 키)에 따로 저장합니다.
@@ -76,13 +77,33 @@
 - IP/EP 자동 획득은 챌린지 안에서는 멈춥니다. 무한/영원 횟수 자동 획득은 EC4 안에서 멈춥니다.
 - 데이터 위치: `overlay/src/core/secret-formula/mod-upgrades.js`
 
+## 모드 시간 연구
+
+영원(Eternity)의 **시간 연구 트리 맨 아래**에 4갈래 × 10단계, 총 40개 연구를 추가했습니다.
+원래 연구처럼 TT로 사고, 리스펙하면 돌려받고, 트리 내보내기/가져오기와 오토메이터에서도 id로 쓸 수 있습니다.
+
+| 갈래 | id | 시작 조건 | 주요 효과 |
+| --- | --- | --- | --- |
+| 반물질 (초록) | 241~250 | 연구 71 | 반물질 비례 차원 배율, 부스트/갤럭시/희생 강화, 10개 구매 배율, 먼 갤럭시 지연, 영원 시간 비례 최대 ×1e300 |
+| 무한 차원 (주황) | 251~260 | 연구 72 | IP/영원 횟수 비례 무한 차원, **무한 파워 변환 지수 +0.25/+0.5**, 8번째 무한 차원 ×1e10, EC 완료 비례 |
+| EP (보라) | 261~270 | 연구 61 | EP 배율, 영원 시작 IP 1e50, 영원 횟수 ×5, TT 생성, EP 자동 획득, 시간 차원 강화 |
+| 복제자 (파랑) | 271~280 | 연구 22 | 레플리칸티 속도, **레플리칸티 갤럭시 최대치 +5/+10**, 레플리칸티 갤럭시 효과 +10%/+25% |
+
+- 갈래의 첫 연구는 시작 조건 연구가 필요하고, 그다음은 바로 위 연구가 필요합니다.
+  반물질/무한 차원 갈래는 차원 경로(71/72)와 묶여 있어서, 경로를 하나만 고를 수 있을 때는 그 갈래만 열립니다.
+- 비용은 단계마다 4, 6, 9, 13, 20, 30, 45, 70, 110, 170 TT입니다 (갈래당 477 TT).
+- Shift+클릭하면 시작 조건 연구부터 누른 연구까지 한 번에 삽니다.
+- 업적 162 "모든 시간 연구"는 원래 연구 58개만 셉니다.
+- 데이터 위치: `overlay/src/core/secret-formula/eternity/time-studies/mod-time-studies.js`
+
 ## 휴대폰으로 플레이하기
 
 푸시할 때마다 GitHub Actions(`.github/workflows/build-game.yml`)가 모드를 적용해 게임을 빌드합니다.
 빌드가 끝나면 `scripts/smoke-test.mjs`가 게임을 **휴대폰 화면 크기(390×844, 터치)** 로 열어 자동으로 확인합니다.
 확인 항목: 게임 시작, 화면 맞춤, 보너스 보상 적용, 시작 반물질, 게임 속도, Mod 탭과 Mod Bonuses 탭,
 탭으로 여는 업적 툴팁, 챌린지 상자, 모드 업그레이드 자동 해금과 알림, 무한 횟수 자동 획득,
-새로고침 후 해금 유지, Mod Upgrades 탭. 하나라도 실패하면 배포하지 않습니다.
+새로고침 후 해금 유지, Mod Upgrades 탭, 모드 시간 연구(구매 순서, 실제 효과, Shift+클릭, 내보내기/리스펙/가져오기,
+트리 화면 표시, 끄기/켜기). 하나라도 실패하면 배포하지 않습니다.
 스크린샷은 Actions 실행 결과의 `smoke-screenshots` 에 올라갑니다.
 저장소가 **공개(public)** 일 때는 빌드 결과를 `gh-pages` 브랜치에 올려 웹사이트로 띄웁니다.
 무료 GitHub 계정은 비공개 저장소에서 GitHub Pages를 쓸 수 없어서, 비공개일 때는 빌드만 합니다.
@@ -129,6 +150,8 @@ overlay/               원본에 새로 추가하는 파일
   src/core/secret-formula/mod-rewards.js             보너스 보상 208개 데이터
   src/core/mod-upgrades.js                           모드 업그레이드 해금 처리 (ModUpgrades 전역 객체)
   src/core/secret-formula/mod-upgrades.js            모드 업그레이드 30개 데이터
+  src/core/mod-time-studies.js                       모드 시간 연구 배치/연결선/연속 구매 (ModTimeStudies 전역 객체)
+  src/core/secret-formula/eternity/time-studies/mod-time-studies.js  모드 시간 연구 40개 데이터
   src/core/secret-formula/mod-news.js                한국어 뉴스
   src/components/ModBonusLine.vue                    툴팁/챌린지 상자의 "모드 보너스" 줄
   src/components/tabs/mod-rewards/ModRewardsTab.vue  Achievements → Mod Bonuses 탭 화면
@@ -147,18 +170,22 @@ scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모
 | --- | --- |
 | `src/game.js` | 게임 속도 배율, 무한 횟수/EP 보너스, 무한/영원 횟수·IP·EP 자동 획득, TT 생성 |
 | `src/core/dimensions/antimatter-dimension.js` | 생산 배율, 모든/특정 차원 보너스, 10개 구매 배율 보너스 |
-| `src/core/tickspeed.js` | 틱스피드, 갤럭시 효과 보너스 |
+| `src/core/tickspeed.js` | 틱스피드, 갤럭시 효과 보너스, 레플리칸티 갤럭시 효과 |
 | `src/core/dimboost.js`, `src/core/galaxy.js` | 차원 부스트 배율, 부스트/갤럭시 요구량 보너스, 먼 갤럭시 비용 증가 지연 |
 | `src/core/currency.js`, `src/core/sacrifice.js` | 시작 반물질, 영원 시작 IP, 차원 희생 보너스 |
 | `src/core/player.js` | 세이브에 모드 업그레이드 해금 상태(`adMod.upgradeBits`) 추가 |
-| `src/core/infinity-upgrades.js`, `src/core/replicanti.js` | IP, 레플리칸티 속도 보너스 |
-| `src/core/dimensions/infinity-dimension.js`, `src/core/dimensions/time-dimension.js` | 무한/시간 차원 보너스 |
+| `src/core/infinity-upgrades.js`, `src/core/replicanti.js` | IP, 레플리칸티 속도 보너스, 레플리칸티 갤럭시 최대치 |
+| `src/core/dimensions/infinity-dimension.js`, `src/core/dimensions/time-dimension.js` | 무한/시간 차원 보너스, 무한 차원별 배율, 무한 파워 변환 지수 |
+| `src/core/secret-formula/eternity/time-studies/normal-time-studies.js` | 시간 연구 데이터베이스에 모드 연구 40개 추가 |
+| `src/core/time-studies/normal-time-study.js` | 모드 연구 Shift+클릭 연속 구매 |
+| 시간 연구 탭 컴포넌트 3개 (`time-study-tree-layout.js`, `TimeStudiesTab.vue`, `TimeStudyButton.vue`) | 트리 아래 모드 연구 구역, 연결선, 갈래 색 |
+| `src/core/secret-formula/achievements/normal-achievements.js` | 업적 162가 원래 연구만 세도록 |
 | `src/core/eternity.js`, `src/core/dilation.js` | 영원 횟수, 타키온 입자, 팽창 시간 보너스 |
 | `src/core/machines.js`, `src/core/glyphs/auto-glyph-processor.js`, `src/core/black-hole.js` | 현실 기계, 글리프 레벨, 블랙홀 보너스 |
 | 업적/챌린지 화면 컴포넌트 5개 | 툴팁과 챌린지 상자에 "모드 보너스" 줄 추가 |
 | `src/core/secret-formula/news.js` | 한국어 뉴스 목록 추가 |
 | `src/core/secret-formula/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses / Mod Upgrades 탭 추가 |
-| `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`를 전역으로 노출 |
+| `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`, `ModTimeStudies`를 전역으로 노출 |
 | `public/index.html` | 모바일 화면 맞춤(viewport), 홈 화면 앱 설정 |
 
 ## 모드 고치기

@@ -205,6 +205,84 @@ try {
     `cards ${cards}, unlocked ${unlockedCards}`);
   await page.screenshot({ path: `${SHOTS}/6-mod-upgrades.png`, fullPage: true });
 
+  // ---- 모드 시간 연구 ----
+  const studyData = await page.evaluate(() => {
+    Currency.eternities.bumpTo(new Decimal(1));
+    Currency.timeTheorems.bumpTo(new Decimal(1000));
+    return { modStudies: GameDatabase.eternity.timeStudies.normal.filter(st => st.isModStudy).length };
+  });
+  check("모드 시간 연구 40개 데이터", studyData.modStudies === 40, JSON.stringify(studyData));
+
+  // 순서대로만 살 수 있고, 산 연구의 효과가 실제 게임 값에 반영되는지 (272: 레플리칸티 갤럭시 최대치 +5)
+  const studyBuy = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    TimeStudy(11).purchase();
+    TimeStudy(22).purchase();
+    const skipped = TimeStudy(272).purchase();
+    const root = TimeStudy(271).purchase();
+    await sleep(300);
+    const maxBefore = Replicanti.galaxies.max;
+    const second = TimeStudy(272).purchase();
+    await sleep(300);
+    return { skipped, root, second, maxBefore, maxAfter: Replicanti.galaxies.max };
+  });
+  check("연구 구매 순서와 효과 (271 → 272: 레플리칸티 갤럭시 최대치 +5)",
+    !studyBuy.skipped && studyBuy.root && studyBuy.second && studyBuy.maxAfter - studyBuy.maxBefore === 5,
+    JSON.stringify(studyBuy));
+
+  // Shift+클릭: 245를 누르면 시작 조건인 71까지 산 뒤 241~245를 차례로 산다
+  const chain = await page.evaluate(() => {
+    TimeStudy(245).purchaseUntil();
+    return { has71: TimeStudy(71).isBought, chain: Array.range(241, 5).every(id => TimeStudy(id).isBought) };
+  });
+  check("Shift+클릭 연속 구매 (71 → 241~245)", chain.has71 && chain.chain, JSON.stringify(chain));
+
+  // 트리 내보내기 / 리스펙 환불 / 트리 가져오기
+  const io = await page.evaluate(() => {
+    const exported = GameCache.currentStudyTree.value.exportString;
+    respecTimeStudies(true);
+    const afterRespec = { studies: player.timestudy.studies.length, tt: Currency.timeTheorems.value.toNumber() };
+    TimeStudyTree.commitToGameState(new TimeStudyTree("11,22,271,272,273").purchasedStudies);
+    return { exported, afterRespec, imported: [271, 272, 273].every(id => TimeStudy(id).isBought) };
+  });
+  check("트리 내보내기에 모드 연구 포함", io.exported.includes("245") && io.exported.includes("272"), io.exported);
+  check("리스펙하면 모드 연구 TT도 환불", io.afterRespec.studies === 0 && io.afterRespec.tt === 1000,
+    JSON.stringify(io.afterRespec));
+  check("트리 가져오기로 모드 연구 구매", io.imported);
+
+  // 시간 연구 탭: 원래 트리 아래 모드 연구 구역
+  await page.evaluate(() => Tab.eternity.studies.show(true));
+  await wait(3000);
+  const tree = await page.evaluate(() => ({
+    title: document.querySelector(".c-ad-mod-study-title")?.innerText ?? "",
+    text: document.body.innerText,
+  }));
+  check("시간 연구 탭에 모드 연구 구역 표시",
+    tree.title.includes("모드 시간 연구") && ["반물질", "무한 차원", "EP", "복제자"].every(n => tree.title.includes(n)) &&
+    tree.text.includes("[반물질 공명]") && tree.text.includes("[복제 정점]"), tree.title.replace(/\s+/gu, " "));
+  await page.evaluate(() => document.querySelector(".c-ad-mod-study-title").scrollIntoView());
+  await wait(300);
+  await page.screenshot({ path: `${SHOTS}/7-mod-studies.png` });
+
+  // 끄면 숨겨지고 살 수 없으며, 다시 켜면 탭을 다시 열지 않아도 모두 그려진다
+  const toggled = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const hasTitle = () => document.querySelector(".c-ad-mod-study-title") !== null;
+    ADMod.modStudies = false;
+    await sleep(800);
+    const off = {
+      title: hasTitle(),
+      shown: document.body.innerText.includes("[반물질 공명]"),
+      bought: TimeStudy(274).purchase(),
+    };
+    ADMod.modStudies = true;
+    await sleep(800);
+    return { off, on: { title: hasTitle(), last: document.body.innerText.includes("[복제 정점]") } };
+  });
+  check("모드 연구 끄기/켜기 (숨김·구매 불가 → 다시 표시)",
+    !toggled.off.title && !toggled.off.shown && !toggled.off.bought && toggled.on.title && toggled.on.last,
+    JSON.stringify(toggled));
+
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {
   check("테스트 실행", false, error.stack);

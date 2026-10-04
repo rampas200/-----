@@ -20,6 +20,7 @@ export default {
       koreanNews: true,
       bonusRewards: true,
       modUpgrades: true,
+      modStudies: true,
       isSuspended: false,
     };
   },
@@ -62,6 +63,9 @@ export default {
     modUpgrades(newValue) {
       ADMod.modUpgrades = newValue;
     },
+    modStudies(newValue) {
+      ADMod.modStudies = newValue;
+    },
   },
   methods: {
     update() {
@@ -70,6 +74,7 @@ export default {
       this.koreanNews = ADMod.koreanNews;
       this.bonusRewards = ADMod.bonusRewards;
       this.modUpgrades = ADMod.modUpgrades;
+      this.modStudies = ADMod.modStudies;
       this.isSuspended = ADMod.isSuspended;
     },
     // 콘솔에서 슬라이더에 없는 값(예: 7)을 넣었을 때도 가장 가까운 칸을 보여준다
@@ -101,7 +106,7 @@ export default {
     <div class="c-ad-mod-header">
       <b>{{ modVersion }}</b> - 안티매터 디멘션 모드 설정
       <div v-if="isSuspended">
-        스피드런 중에는 게임 속도, 생산 배율, 보너스 보상, 모드 업그레이드가 적용되지 않습니다.
+        스피드런 중에는 게임 속도, 생산 배율, 보너스 보상, 모드 업그레이드, 모드 시간 연구가 적용되지 않습니다.
       </div>
     </div>
     <div class="l-options-grid">
@@ -144,6 +149,13 @@ export default {
           v-model="modUpgrades"
           class="o-primary-btn--option l-options-grid__button"
           label="모드 업그레이드 효과:"
+          on="켜짐"
+          off="꺼짐"
+        />
+        <PrimaryToggleButton
+          v-model="modStudies"
+          class="o-primary-btn--option l-options-grid__button"
+          label="모드 시간 연구:"
           on="켜짐"
           off="꺼짐"
         />

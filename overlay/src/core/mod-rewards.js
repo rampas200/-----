@@ -1,7 +1,8 @@
 // [AD Mod] 보너스 효과 엔진
-// 두 가지 모드 기능의 효과를 한곳에서 모아 게임 계산식에 넘긴다.
+// 여러 모드 기능의 효과를 한곳에서 모아 게임 계산식에 넘긴다.
 //  - 보너스 보상: 모든 업적/비밀 업적/챌린지에 붙는 추가 보상 (secret-formula/mod-rewards.js)
 //  - 모드 업그레이드: 조건을 달성하면 해금되는 일회성 업그레이드 (secret-formula/mod-upgrades.js)
+//  - 모드 시간 연구: 시간 연구 트리 아래의 4갈래 연구 (secret-formula/eternity/time-studies/mod-time-studies.js)
 // 여기서는
 //  1) 각 효과가 지금 켜져 있는지(업적 달성, 업그레이드 해금 등) 판단하고
 //  2) 같은 채널(예: 틱스피드)에 걸린 효과들을 곱하거나 더해서
@@ -9,6 +10,7 @@
 
 import { DC } from "./constants";
 import { modRewards } from "./secret-formula/mod-rewards";
+import { modTimeStudies } from "./secret-formula/eternity/time-studies/mod-time-studies";
 import { modUpgrades } from "./secret-formula/mod-upgrades";
 
 // 종류(kind): decimal = Decimal 곱, number = 숫자 곱, sum = 숫자 합, max = Decimal 최댓값
@@ -44,6 +46,11 @@ export const MOD_REWARD_CHANNELS = {
   galaxyScalingDelay: { kind: "sum", format: "laterInt", label: "먼 갤럭시 비용 증가 시작" },
   ttPerSecond: { kind: "sum", format: "plusPerSec", label: "시간 정리(TT) 생성" },
   startingIP: { kind: "max", format: "atLeast", label: "영원 시작 IP" },
+  // 아래는 모드 시간 연구에서 쓰는 채널
+  idTierMult: { kind: "decimal", format: "mult", label: "무한 차원", tiered: true },
+  idConversion: { kind: "sum", format: "plus", label: "무한 파워 변환 지수" },
+  replicantiGalaxyMax: { kind: "sum", format: "plusInt", label: "레플리칸티 갤럭시 최대치" },
+  replicantiGalaxyPower: { kind: "sum", format: "percentAdd", label: "레플리칸티 갤럭시 효과" },
 };
 
 const bonusRewardsEnabled = () => ADMod.bonusRewards;
@@ -87,6 +94,12 @@ export const MOD_REWARD_SOURCES = {
     isActive: id => ModUpgrades.isUnlocked(id),
     title: id => ModUpgrades.byId(id).name,
   },
+  study: {
+    label: "모드 시간 연구",
+    isEnabled: () => ADMod.modStudies,
+    isActive: id => TimeStudy(id).isBought,
+    title: id => `연구 ${id}`,
+  },
 };
 
 // 데이터를 { source, id, note, parts } 목록으로 펼치고, 채널별로 묶어 둔다
@@ -107,8 +120,10 @@ for (const [source, rewards] of Object.entries(modRewards)) {
 }
 // 모드 업그레이드의 효과 (Mod Upgrades 탭에서 따로 보여준다)
 const upgradeRewardList = modUpgrades.map(upgrade => register("upgrade", upgrade.id, upgrade));
+// 모드 시간 연구의 효과 (연구 버튼에 표시된다)
+const studyRewardList = modTimeStudies.map(study => register("study", study.id, study));
 
-const rewardIndex = new Map([...rewardList, ...upgradeRewardList].map(r => [r.key, r]));
+const rewardIndex = new Map([...rewardList, ...upgradeRewardList, ...studyRewardList].map(r => [r.key, r]));
 
 function neutralValue(kind) {
   if (kind === "decimal") return DC.D1;
@@ -209,6 +224,7 @@ function formatChannelValue(channel, value) {
     case "laterInt": return `${formatInt(value)}개 늦게`;
     case "plusPerSec": return `+${formatNumberish(value)}/초`;
     case "atLeast": return `최소 ${format(value, 2, 0)}`;
+    case "percentAdd": return `+${formatPercents(Number(value), Number.isInteger(Number(value) * 100) ? 0 : 1)}`;
     default: return `${value}`;
   }
 }
@@ -246,6 +262,7 @@ export const ModRewards = {
   sources: MOD_REWARD_SOURCES,
   list: rewardList,
   upgradeList: upgradeRewardList,
+  studyList: studyRewardList,
 
   // 보너스 보상(업적/챌린지)이 켜져 있는지. 모드 업그레이드는 ADMod.modUpgrades로 따로 켜고 끈다.
   get isEnabled() {
@@ -279,6 +296,12 @@ export const ModRewards = {
   },
   title(reward) {
     return MOD_REWARD_SOURCES[reward.source].title(reward.id);
+  },
+  // 켜져 있는지와 관계없이 첫 번째 효과의 지금 값 (모드 시간 연구 버튼의 "현재 값" 표시용)
+  potentialValue(source, id) {
+    const reward = rewardIndex.get(`${source}${id}`);
+    const part = reward.parts[0];
+    return partValue(reward, part, MOD_REWARD_CHANNELS[part.channel].tiered ? part.tiers[0] : undefined);
   },
   describe(reward) {
     const isActive = isSourceEnabled(reward.source) && isRewardActive(reward);

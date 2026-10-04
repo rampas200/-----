@@ -218,6 +218,152 @@ index 0347691..8ef2461 100644
        </template>
      </div>
      <div
+diff --git a/src/components/tabs/time-studies/TimeStudiesTab.vue b/src/components/tabs/time-studies/TimeStudiesTab.vue
+index bc76e26..fcedd44 100644
+--- a/src/components/tabs/time-studies/TimeStudiesTab.vue
++++ b/src/components/tabs/time-studies/TimeStudiesTab.vue
+@@ -33,6 +33,7 @@ export default {
+       renderedConnectionCount: 0,
+       isEnslaved: false,
+       delayTimer: 0,
++      modStudiesShown: ModTimeStudies.isEnabled,
+     };
+   },
+   computed: {
+@@ -71,6 +72,13 @@ export default {
+     vLevel() {
+       // When vLevel changes, we recompute the study tree because of triad studies
+       this.$recompute("layout");
++    },
++    // [AD Mod] 모드 연구를 켜고 끄면 트리 배치를 다시 계산하고, 늘어난 연구도 바로 모두 그린다
++    // (점진적 그리기는 처음 한 번만 돌기 때문에 나중에 늘어난 연구는 그려지지 않는다)
++    modStudiesShown() {
++      this.$recompute("layout");
++      this.renderedStudyCount = this.allStudies.length;
++      this.renderedConnectionCount = this.allConnections.length;
+     }
+   },
+   created() {
+@@ -112,6 +120,7 @@ export default {
+       this.layoutType = STUDY_TREE_LAYOUT_TYPE.current;
+       this.vLevel = Ra.pets.v.level;
+       this.isEnslaved = Enslaved.isRunning || Date.now() - this.delayTimer < 1000;
++      this.modStudiesShown = ModTimeStudies.isEnabled;
+     },
+     studyComponent(study) {
+       switch (study.type) {
+@@ -166,6 +175,23 @@ export default {
+         :key="setup.study.type.toString() + setup.study.id.toString()"
+         :setup="setup"
+       />
++      <div
++        v-if="layout.modTitle"
++        class="c-ad-mod-study-title"
++        :style="{ top: `${layout.modTitle.top}rem`, height: `${layout.modTitle.height}rem` }"
++      >
++        <div class="c-ad-mod-study-title__text">
++          모드 시간 연구
++        </div>
++        <div
++          v-for="label in layout.modTitle.labels"
++          :key="label.name"
++          class="c-ad-mod-study-title__branch"
++          :style="{ left: `${label.left}rem`, width: `${label.width}rem` }"
++        >
++          {{ label.name }}
++        </div>
++      </div>
+       <SecretTimeStudy :setup="layout.secretStudy" />
+       <EnslavedTimeStudy
+         v-if="isEnslaved"
+@@ -192,5 +218,24 @@ export default {
+ </template>
+ 
+ <style scoped>
++.c-ad-mod-study-title {
++  position: absolute;
++  left: 0;
++  width: 100%;
++  border-top: 0.2rem dashed var(--color-text);
++  color: var(--color-text);
++}
++
++.c-ad-mod-study-title__text {
++  margin-top: 0.4rem;
++  font-size: 1.6rem;
++  font-weight: bold;
++}
+ 
++.c-ad-mod-study-title__branch {
++  position: absolute;
++  bottom: 0.4rem;
++  font-size: 1.3rem;
++  font-weight: bold;
++}
+ </style>
+diff --git a/src/components/tabs/time-studies/TimeStudyButton.vue b/src/components/tabs/time-studies/TimeStudyButton.vue
+index da7a01e..44a2d60 100644
+--- a/src/components/tabs/time-studies/TimeStudyButton.vue
++++ b/src/components/tabs/time-studies/TimeStudyButton.vue
+@@ -73,7 +73,8 @@ export default {
+             case TIME_STUDY_PATH.IDLE: return "o-time-study-idle";
+             case TIME_STUDY_PATH.LIGHT: return "o-time-study-light";
+             case TIME_STUDY_PATH.DARK: return "o-time-study-dark";
+-            default: return "o-time-study-normal";
++            // [AD Mod] 모드 연구는 갈래 색을 쓴다
++            default: return this.study.config.modClass ?? "o-time-study-normal";
+           }
+         case TIME_STUDY_TYPE.ETERNITY_CHALLENGE:
+           return "o-time-study-eternity-challenge";
+diff --git a/src/components/tabs/time-studies/time-study-tree-layout.js b/src/components/tabs/time-studies/time-study-tree-layout.js
+index 079ecf4..e6891ba 100644
+--- a/src/components/tabs/time-studies/time-study-tree-layout.js
++++ b/src/components/tabs/time-studies/time-study-tree-layout.js
+@@ -124,6 +124,15 @@ export class TimeStudyTreeLayout {
+       normalRow(          TimeStudy.timeDimension(7), TimeStudy.timeDimension(8)      ),
+       normalRow(                          TimeStudy.reality                           )
+     );
++
++    // [AD Mod] 모드 시간 연구: 빈 줄(제목 자리) 다음에 갈래별 열로 10줄
++    if (ModTimeStudies.isEnabled) {
++      this.modTitleRow = this.rows.length;
++      this.rows.push(normalRow(null, null, null, null));
++      for (let depth = 0; depth < ModTimeStudies.depth; depth++) {
++        this.rows.push(normalRow(...ModTimeStudies.rowIds(depth).map(id => TS(id))));
++      }
++    }
+     /* eslint-enable no-multi-spaces, space-in-parens, func-call-spacing */
+ 
+     /**
+@@ -164,6 +173,7 @@ export class TimeStudyTreeLayout {
+      * @type {TimeStudyConnectionSetup[]}
+      */
+     this.connections = TimeStudy.allConnections
++      .concat(ModTimeStudies.connections())
+       .map(c => new TimeStudyConnectionSetup(c));
+     this.secretStudyConnection = new TimeStudyConnectionSetup(
+       new TimeStudyConnection(TS(11), secretStudy)
+@@ -179,6 +189,20 @@ export class TimeStudyTreeLayout {
+     for (const study of this.studies) {
+       study.setPosition(this);
+     }
++
++    // [AD Mod] 모드 연구 제목과 갈래 이름 위치
++    if (this.modTitleRow !== undefined) {
++      const titleRow = this.rows[this.modTitleRow];
++      this.modTitle = {
++        top: this.itemPosition(this.modTitleRow),
++        height: titleRow.layout.itemHeight,
++        labels: ModTimeStudies.branches.map((branch, column) => ({
++          name: branch.name,
++          left: titleRow.itemPosition(column, this),
++          width: titleRow.layout.itemWidth,
++        })),
++      };
++    }
+     this.secretStudy.setPosition(this);
+     this.enslavedStudy.setPosition(this);
+ 
 diff --git a/src/core/black-hole.js b/src/core/black-hole.js
 index cee79a4..f3cd1e4 100644
 --- a/src/core/black-hole.js
@@ -355,7 +501,7 @@ index a0ae380..354e41a 100644
      mult = mult.timesEffectsOf(
        InfinityUpgrade.buy10Mult,
 diff --git a/src/core/dimensions/infinity-dimension.js b/src/core/dimensions/infinity-dimension.js
-index 30b2916..c9db052 100644
+index 30b2916..28f5304 100644
 --- a/src/core/dimensions/infinity-dimension.js
 +++ b/src/core/dimensions/infinity-dimension.js
 @@ -24,6 +24,8 @@ export function infinityDimensionCommonMultiplier() {
@@ -367,6 +513,25 @@ index 30b2916..c9db052 100644
  
    return mult;
  }
+@@ -148,6 +150,8 @@ class InfinityDimensionState extends DimensionState {
+         tier === 4 ? TimeStudy(72) : null,
+         tier === 1 ? EternityChallenge(2).reward : null
+       );
++    // [AD Mod] 모드 시간 연구: 특정 무한 차원
++    mult = mult.times(ModRewards.decimal("idTierMult", tier));
+     mult = mult.times(Decimal.pow(this.powerMultiplier, Math.floor(this.baseAmount / 10)));
+ 
+ 
+@@ -410,6 +414,8 @@ export const InfinityDimensions = {
+ 
+   get powerConversionRate() {
+     const multiplier = PelleRifts.paradox.milestones[2].effectOrDefault(1);
+-    return (7 + getAdjustedGlyphEffect("infinityrate") + PelleUpgrade.infConversion.effectOrDefault(0)) * multiplier;
++    // [AD Mod] 모드 시간 연구: 무한 파워 변환 지수 증가
++    return (7 + getAdjustedGlyphEffect("infinityrate") + PelleUpgrade.infConversion.effectOrDefault(0) +
++      ModRewards.sum("idConversion")) * multiplier;
+   }
+ };
 diff --git a/src/core/dimensions/time-dimension.js b/src/core/dimensions/time-dimension.js
 index d5b97df..fde2bf7 100644
 --- a/src/core/dimensions/time-dimension.js
@@ -423,16 +588,17 @@ index 3a7d5a8..50d18f4 100644
  
    static get type() {
 diff --git a/src/core/globals.js b/src/core/globals.js
-index 014784d..0286368 100644
+index 014784d..e5a2fcd 100644
 --- a/src/core/globals.js
 +++ b/src/core/globals.js
-@@ -88,5 +88,8 @@ export * from "./shop";
+@@ -88,5 +88,9 @@ export * from "./shop";
  export * from "./tabs";
  export * from "./tab-notifications";
  export * from "./speedrun";
 +export * from "./ad-mod";
 +export * from "./mod-rewards";
 +export * from "./mod-upgrades";
++export * from "./mod-time-studies";
  
  export * from "./automator/script-templates";
 diff --git a/src/core/glyphs/auto-glyph-processor.js b/src/core/glyphs/auto-glyph-processor.js
@@ -495,7 +661,7 @@ index eac84b0..1fb1f05 100644
      infinity: {
        maxAll: false,
 diff --git a/src/core/replicanti.js b/src/core/replicanti.js
-index 5b9f5d8..f6033af 100644
+index 5b9f5d8..f64bf3f 100644
 --- a/src/core/replicanti.js
 +++ b/src/core/replicanti.js
 @@ -157,6 +157,8 @@ export function totalReplicantiSpeedMult(overCap) {
@@ -507,6 +673,17 @@ index 5b9f5d8..f6033af 100644
  
    return totalMult;
  }
+@@ -453,7 +455,9 @@ export const ReplicantiUpgrade = {
+     }
+ 
+     get extra() {
+-      return Effects.max(0, TimeStudy(131)) + PelleRifts.decay.milestones[2].effectOrDefault(0);
++      // [AD Mod] 마지막 항은 모드 시간 연구(레플리칸티 갤럭시 최대치)
++      return Effects.max(0, TimeStudy(131)) + PelleRifts.decay.milestones[2].effectOrDefault(0) +
++        ModRewards.sum("replicantiGalaxyMax");
+     }
+ 
+     autobuyerTick() {
 diff --git a/src/core/sacrifice.js b/src/core/sacrifice.js
 index bbacd58..a0d8731 100644
 --- a/src/core/sacrifice.js
@@ -521,6 +698,41 @@ index bbacd58..a0d8731 100644
    }
  
    static get nextBoost() {
+diff --git a/src/core/secret-formula/achievements/normal-achievements.js b/src/core/secret-formula/achievements/normal-achievements.js
+index 6e7b033..c569420 100644
+--- a/src/core/secret-formula/achievements/normal-achievements.js
++++ b/src/core/secret-formula/achievements/normal-achievements.js
+@@ -1187,7 +1187,8 @@ export const normalAchievements = [
+     id: 162,
+     name: "Reinstalled the game and rejoined the server",
+     description: "Have every Time Study at once.",
+-    checkRequirement: () => player.timestudy.studies.length >= 58,
++    // [AD Mod] 모드 시간 연구는 세지 않는다
++    checkRequirement: () => player.timestudy.studies.filter(id => !ModTimeStudies.isModStudy(id)).length >= 58,
+     checkEvent: GAME_EVENT.GAME_TICK_AFTER
+   },
+   {
+diff --git a/src/core/secret-formula/eternity/time-studies/normal-time-studies.js b/src/core/secret-formula/eternity/time-studies/normal-time-studies.js
+index 0b0877e..bd8a58a 100644
+--- a/src/core/secret-formula/eternity/time-studies/normal-time-studies.js
++++ b/src/core/secret-formula/eternity/time-studies/normal-time-studies.js
+@@ -1,5 +1,7 @@
+ import { DC } from "../../../constants";
+ 
++import { modTimeStudies } from "./mod-time-studies";
++
+ const thisInfinityMult = thisInfinity => {
+   // All "this inf time" or "best inf time" mults are * 10
+   const scaledInfinity = thisInfinity * 10 + 1;
+@@ -689,5 +691,7 @@ export const normalTimeStudies = [
+     description: "Dimensional Sacrifice multiplier is squared",
+     effect: 2,
+     unlocked: () => Ra.unlocks.unlockHardV.effectOrDefault(0) >= 4
+-  }
++  },
++  // [AD Mod] 모드 시간 연구 (id 241~280)
++  ...modTimeStudies
+ ];
 diff --git a/src/core/secret-formula/news.js b/src/core/secret-formula/news.js
 index 2662fb0..3277100 100644
 --- a/src/core/secret-formula/news.js
@@ -588,10 +800,23 @@ index 376688d..c05580b 100644
      ]
    },
 diff --git a/src/core/tickspeed.js b/src/core/tickspeed.js
-index d3ae997..4c41134 100644
+index d3ae997..ffa5923 100644
 --- a/src/core/tickspeed.js
 +++ b/src/core/tickspeed.js
-@@ -23,6 +23,7 @@ export function getTickSpeedMultiplier() {
+@@ -3,10 +3,11 @@ import { DC } from "./constants";
+ export function effectiveBaseGalaxies() {
+   // Note that this already includes the "50% more" active path effect
+   let replicantiGalaxies = Replicanti.galaxies.bought;
++  // [AD Mod] 마지막 항은 모드 시간 연구(레플리칸티 갤럭시 효과)
+   replicantiGalaxies *= (1 + Effects.sum(
+     TimeStudy(132),
+     TimeStudy(133)
+-  ));
++  ) + ModRewards.sum("replicantiGalaxyPower"));
+   // "extra" galaxies unaffected by the passive/idle boosts come from studies 225/226 and Effarig Infinity
+   replicantiGalaxies += Replicanti.galaxies.extra;
+   const nonActivePathReplicantiGalaxies = Math.min(Replicanti.galaxies.bought,
+@@ -23,6 +24,7 @@ export function getTickSpeedMultiplier() {
    if (InfinityChallenge(3).isRunning) return DC.D1;
    if (Ra.isRunning) return DC.C1D1_1245;
    let galaxies = effectiveBaseGalaxies();
@@ -599,7 +824,7 @@ index d3ae997..4c41134 100644
    const effects = Effects.product(
      InfinityUpgrade.galaxyBoost,
      InfinityUpgrade.galaxyBoost.chargedEffect,
-@@ -34,7 +35,7 @@ export function getTickSpeedMultiplier() {
+@@ -34,7 +36,7 @@ export function getTickSpeedMultiplier() {
      InfinityChallenge(5).reward,
      PelleUpgrade.galaxyPower,
      PelleRifts.decay.milestones[1]
@@ -608,7 +833,7 @@ index d3ae997..4c41134 100644
    if (galaxies < 3) {
      // Magic numbers are to retain balancing from before while displaying
      // them now as positive multipliers rather than negative percentages
-@@ -172,7 +173,9 @@ export const Tickspeed = {
+@@ -172,7 +174,9 @@ export const Tickspeed = {
        Achievement(66),
        Achievement(83)
      )
@@ -619,6 +844,22 @@ index d3ae997..4c41134 100644
    },
  
    get totalUpgrades() {
+diff --git a/src/core/time-studies/normal-time-study.js b/src/core/time-studies/normal-time-study.js
+index 5021a22..d12ea36 100644
+--- a/src/core/time-studies/normal-time-study.js
++++ b/src/core/time-studies/normal-time-study.js
+@@ -95,6 +95,11 @@ export class NormalTimeStudyState extends TimeStudyState {
+   }
+ 
+   purchaseUntil() {
++    // [AD Mod] 모드 연구는 갈래를 따라 산다
++    if (this.config.isModStudy) {
++      ModTimeStudies.purchaseChain(this.id);
++      return;
++    }
+     TimeStudyTree.commitToGameState(buyStudiesUntil(this.id));
+   }
+ 
 diff --git a/src/game.js b/src/game.js
 index 41a77d0..bc5dec1 100644
 --- a/src/game.js

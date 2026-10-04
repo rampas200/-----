@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS = {
   bonusRewards: true,
   // 모드 업그레이드(조건 달성형 일회성 업그레이드) 효과 적용 여부. 해금 기록은 꺼도 유지된다.
   modUpgrades: true,
+  // 모드 시간 연구 표시/구매/효과 여부. 꺼도 이미 산 연구는 리스펙할 때까지 남는다.
+  modStudies: true,
 };
 
 export const AD_MOD_LIMITS = {
@@ -52,9 +54,9 @@ function saveSettings() {
 
 export const ADMod = {
   name: "AD Mod",
-  version: "0.3.0",
+  version: "0.4.0",
 
-  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 속도/생산 배율, 보너스 보상, 모드 업그레이드를 끈다.
+  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 모드 기능(속도/생산 배율, 보너스 보상, 업그레이드, 연구)을 끈다.
   get isSuspended() {
     return player.speedrun.isActive;
   },
@@ -99,6 +101,16 @@ export const ADMod = {
     settings.modUpgrades = Boolean(value);
     saveSettings();
     ModRewards.invalidate();
+  },
+
+  get modStudies() {
+    return Boolean(settings.modStudies);
+  },
+  set modStudies(value) {
+    settings.modStudies = Boolean(value);
+    saveSettings();
+    ModRewards.invalidate();
+    GameCache.currentStudyTree.invalidate();
   },
 
   // 게임 루프에서 실제로 쓰는 값들
