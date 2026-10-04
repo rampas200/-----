@@ -14,6 +14,8 @@ const DEFAULT_SETTINGS = {
   productionExponent: 0,
   // 한국어 뉴스 티커 메시지 표시 여부
   koreanNews: true,
+  // 업적/챌린지 보너스 보상 적용 여부
+  bonusRewards: true,
 };
 
 export const AD_MOD_LIMITS = {
@@ -48,9 +50,9 @@ function saveSettings() {
 
 export const ADMod = {
   name: "AD Mod",
-  version: "0.1.0",
+  version: "0.2.0",
 
-  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 속도/생산 배율을 끈다.
+  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 속도/생산 배율과 보너스 보상을 끈다.
   get isSuspended() {
     return player.speedrun.isActive;
   },
@@ -79,6 +81,15 @@ export const ADMod = {
     saveSettings();
   },
 
+  get bonusRewards() {
+    return Boolean(settings.bonusRewards);
+  },
+  set bonusRewards(value) {
+    settings.bonusRewards = Boolean(value);
+    saveSettings();
+    ModRewards.invalidate();
+  },
+
   // 게임 루프에서 실제로 쓰는 값들
   get effectiveGameSpeed() {
     return this.isSuspended ? 1 : this.gameSpeed;
@@ -91,5 +102,6 @@ export const ADMod = {
   reset() {
     Object.assign(settings, DEFAULT_SETTINGS);
     saveSettings();
+    ModRewards.invalidate();
   },
 };

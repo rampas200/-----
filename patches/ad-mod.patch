@@ -1,8 +1,48 @@
+diff --git a/src/components/tabs/eternity-challenges/EternityChallengeBox.vue b/src/components/tabs/eternity-challenges/EternityChallengeBox.vue
+index 2d87893..34be84c 100644
+--- a/src/components/tabs/eternity-challenges/EternityChallengeBox.vue
++++ b/src/components/tabs/eternity-challenges/EternityChallengeBox.vue
+@@ -3,6 +3,8 @@ import wordShift from "@/core/word-shift";
+ 
+ import DescriptionDisplay from "@/components/DescriptionDisplay";
+ import EffectDisplay from "@/components/EffectDisplay";
++import ModBonusLine from "@/components/ModBonusLine";
++
+ import EternityChallengeBoxWrapper from "./EternityChallengeBoxWrapper";
+ 
+ export default {
+@@ -10,7 +12,8 @@ export default {
+   components: {
+     EternityChallengeBoxWrapper,
+     DescriptionDisplay,
+-    EffectDisplay
++    EffectDisplay,
++    ModBonusLine
+   },
+   props: {
+     challenge: {
+@@ -136,6 +139,11 @@ export default {
+           :ignore-capped="true"
+         />
+       </span>
++      <ModBonusLine
++        source="eternityChallenge"
++        :reward-id="challenge.id"
++        compact
++      />
+     </template>
+   </EternityChallengeBoxWrapper>
+ </template>
 diff --git a/src/components/tabs/index.js b/src/components/tabs/index.js
-index a5c5b7b..e44f64c 100644
+index a5c5b7b..694c150 100644
 --- a/src/components/tabs/index.js
 +++ b/src/components/tabs/index.js
-@@ -23,6 +23,7 @@ import MultiplierBreakdownTab from "./statistics/MultiplierBreakdownTab";
+@@ -19,10 +19,12 @@ import InfinityChallengesTab from "./infinity-challenges/InfinityChallengesTab";
+ import InfinityDimensionsTab from "./infinity-dimensions/InfinityDimensionsTab";
+ import InfinityUpgradesTab from "./infinity-upgrades/InfinityUpgradesTab";
+ import LaitelaTab from "./celestial-laitela/LaitelaTab";
++import ModRewardsTab from "./mod-rewards/ModRewardsTab";
+ import MultiplierBreakdownTab from "./statistics/MultiplierBreakdownTab";
  import NormalAchievementsTab from "./normal-achievements/NormalAchievementsTab";
  import NormalChallengesTab from "./normal-challenges/NormalChallengesTab";
  import OptionsGameplayTab from "./options-gameplay/OptionsGameplayTab";
@@ -10,7 +50,7 @@ index a5c5b7b..e44f64c 100644
  import OptionsSavingTab from "./options-saving/OptionsSavingTab";
  import OptionsVisualTab from "./options-visual/OptionsVisualTab";
  import PastPrestigeRunsTab from "./past-prestige-runs/PastPrestigeRunsTab";
-@@ -49,6 +50,7 @@ const TabComponents = {
+@@ -49,6 +51,7 @@ const TabComponents = {
    OptionsSavingTab,
    OptionsVisualTab,
    OptionsGameplayTab,
@@ -18,31 +58,397 @@ index a5c5b7b..e44f64c 100644
    StatisticsTab,
    ChallengeRecordsTab,
    PastPrestigeRunsTab,
+@@ -57,6 +60,7 @@ const TabComponents = {
+   PreviousSpeedrunTab,
+   NormalAchievementsTab,
+   SecretAchievementTab,
++  ModRewardsTab,
+   TeresaTab,
+   EffarigTab,
+   EnslavedTab,
+diff --git a/src/components/tabs/infinity-challenges/InfinityChallengeBox.vue b/src/components/tabs/infinity-challenges/InfinityChallengeBox.vue
+index 6ce07a3..472d43a 100644
+--- a/src/components/tabs/infinity-challenges/InfinityChallengeBox.vue
++++ b/src/components/tabs/infinity-challenges/InfinityChallengeBox.vue
+@@ -2,13 +2,15 @@
+ import ChallengeBox from "@/components/ChallengeBox";
+ import DescriptionDisplay from "@/components/DescriptionDisplay";
+ import EffectDisplay from "@/components/EffectDisplay";
++import ModBonusLine from "@/components/ModBonusLine";
+ 
+ export default {
+   name: "InfinityChallengeBox",
+   components: {
+     ChallengeBox,
+     DescriptionDisplay,
+-    EffectDisplay
++    EffectDisplay,
++    ModBonusLine
+   },
+   props: {
+     challenge: {
+@@ -68,6 +70,11 @@ export default {
+         <EffectDisplay
+           :config="config.reward"
+         />
++        <ModBonusLine
++          source="infinityChallenge"
++          :reward-id="challenge.id"
++          compact
++        />
+       </div>
+     </template>
+   </ChallengeBox>
+diff --git a/src/components/tabs/normal-achievements/NormalAchievement.vue b/src/components/tabs/normal-achievements/NormalAchievement.vue
+index 75d40ab..d9681d9 100644
+--- a/src/components/tabs/normal-achievements/NormalAchievement.vue
++++ b/src/components/tabs/normal-achievements/NormalAchievement.vue
+@@ -3,12 +3,14 @@ import wordShift from "@/core/word-shift";
+ 
+ import EffectDisplay from "@/components/EffectDisplay";
+ import HintText from "@/components/HintText";
++import ModBonusLine from "@/components/ModBonusLine";
+ 
+ export default {
+   name: "NormalAchievement",
+   components: {
+     EffectDisplay,
+-    HintText
++    HintText,
++    ModBonusLine
+   },
+   props: {
+     achievement: {
+@@ -211,6 +213,11 @@ export default {
+             />
+           </span>
+         </div>
++        <ModBonusLine
++          v-if="!isObscured"
++          source="achievement"
++          :reward-id="id"
++        />
+         <div
+           v-if="achievedTime"
+           class="o-achievement-time"
+diff --git a/src/components/tabs/normal-challenges/NormalChallengeBox.vue b/src/components/tabs/normal-challenges/NormalChallengeBox.vue
+index 5557e4e..05f69f7 100644
+--- a/src/components/tabs/normal-challenges/NormalChallengeBox.vue
++++ b/src/components/tabs/normal-challenges/NormalChallengeBox.vue
+@@ -1,12 +1,14 @@
+ <script>
+ import ChallengeBox from "@/components/ChallengeBox";
+ import DescriptionDisplay from "@/components/DescriptionDisplay";
++import ModBonusLine from "@/components/ModBonusLine";
+ 
+ export default {
+   name: "NormalChallengeBox",
+   components: {
+     ChallengeBox,
+-    DescriptionDisplay
++    DescriptionDisplay,
++    ModBonusLine
+   },
+   props: {
+     challenge: {
+@@ -71,6 +73,11 @@ export default {
+     </template>
+     <template #bottom>
+       <span :class="{ 'o-pelle-disabled': isDisabled }">Reward: {{ challenge.config.reward }}</span>
++      <ModBonusLine
++        source="normalChallenge"
++        :reward-id="challenge.id"
++        compact
++      />
+     </template>
+   </ChallengeBox>
+ </template>
+diff --git a/src/components/tabs/secret-achievements/SecretAchievement.vue b/src/components/tabs/secret-achievements/SecretAchievement.vue
+index 0347691..8ef2461 100644
+--- a/src/components/tabs/secret-achievements/SecretAchievement.vue
++++ b/src/components/tabs/secret-achievements/SecretAchievement.vue
+@@ -1,10 +1,12 @@
+ <script>
+ import HintText from "@/components/HintText";
++import ModBonusLine from "@/components/ModBonusLine";
+ 
+ export default {
+   name: "SecretAchievement",
+   components: {
+-    HintText
++    HintText,
++    ModBonusLine
+   },
+   props: {
+     achievement: {
+@@ -99,6 +101,11 @@ export default {
+         >
+           {{ config.description }}
+         </div>
++        <ModBonusLine
++          v-if="isUnlocked"
++          source="secret"
++          :reward-id="id"
++        />
+       </template>
+     </div>
+     <div
+diff --git a/src/core/black-hole.js b/src/core/black-hole.js
+index cee79a4..f3cd1e4 100644
+--- a/src/core/black-hole.js
++++ b/src/core/black-hole.js
+@@ -127,7 +127,8 @@ class BlackHoleState {
+    * Multiplier to time the black hole gives when active.
+    */
+   get power() {
+-    return this.powerUpgrade.value * Achievement(158).effectOrDefault(1);
++    // [AD Mod] 보너스 보상: 블랙홀 위력
++    return this.powerUpgrade.value * Achievement(158).effectOrDefault(1) * ModRewards.number("blackHolePower");
+   }
+ 
+   /**
+diff --git a/src/core/currency.js b/src/core/currency.js
+index cb16d1c..395cab5 100644
+--- a/src/core/currency.js
++++ b/src/core/currency.js
+@@ -233,6 +233,7 @@ Currency.antimatter = new class extends DecimalCurrency {
+ 
+   get startingValue() {
+     if (Pelle.isDisabled()) return new Decimal(100);
++    // [AD Mod] 끝에 보너스 보상(시작 반물질) 배율을 곱한다
+     return Effects.max(
+       10,
+       Perk.startAM,
+@@ -241,7 +242,7 @@ Currency.antimatter = new class extends DecimalCurrency {
+       Achievement(54),
+       Achievement(55),
+       Achievement(78)
+-    ).toDecimal();
++    ).toDecimal().times(ModRewards.decimal("startingAM"));
+   }
+ }();
+ 
+diff --git a/src/core/dilation.js b/src/core/dilation.js
+index 9e5228f..1ed25db 100644
+--- a/src/core/dilation.js
++++ b/src/core/dilation.js
+@@ -135,6 +135,8 @@ export function getDilationGainPerSecond() {
+     );
+   dtRate = dtRate.times(getAdjustedGlyphEffect("dilationDT"));
+   dtRate = dtRate.times(ShopPurchase.dilatedTimePurchases.currentMult);
++  // [AD Mod] 보너스 보상: 팽창 시간
++  dtRate = dtRate.times(ModRewards.decimal("dtMult"));
+   dtRate = dtRate.times(
+     Math.clampMin(Decimal.log10(Replicanti.amount) * getAdjustedGlyphEffect("replicationdtgain"), 1));
+   if (Enslaved.isRunning && !dtRate.eq(0)) dtRate = Decimal.pow10(Math.pow(dtRate.plus(1).log10(), 0.85) - 1);
+@@ -145,6 +147,7 @@ export function getDilationGainPerSecond() {
+ export function tachyonGainMultiplier() {
+   if (Pelle.isDisabled("tpMults")) return new Decimal(1);
+   const pow = Enslaved.isRunning ? Enslaved.tachyonNerf : 1;
++  // [AD Mod] 거듭제곱 전에 보너스 보상(타키온 입자) 배율을 곱한다
+   return DC.D1.timesEffectsOf(
+     DilationUpgrade.tachyonGain,
+     GlyphSacrifice.dilation,
+@@ -152,7 +155,7 @@ export function tachyonGainMultiplier() {
+     RealityUpgrade(4),
+     RealityUpgrade(8),
+     RealityUpgrade(15)
+-  ).pow(pow);
++  ).times(ModRewards.decimal("tpMult")).pow(pow);
+ }
+ 
+ export function rewardTP() {
+diff --git a/src/core/dimboost.js b/src/core/dimboost.js
+index a39b587..cdb83aa 100644
+--- a/src/core/dimboost.js
++++ b/src/core/dimboost.js
+@@ -34,6 +34,8 @@ export class DimBoost {
+         GlyphEffect.dimBoostPower,
+         PelleRifts.recursion.milestones[0]
+       ).powEffectsOf(InfinityUpgrade.dimboostMult.chargedEffect);
++    // [AD Mod] 보너스 보상: 차원 부스트 배율
++    boost = boost.times(ModRewards.number("dimBoostPower"));
+     if (GlyphAlteration.isAdded("effarig")) boost = boost.pow(getSecondaryGlyphEffect("effarigforgotten"));
+     return boost;
+   }
+@@ -115,6 +117,8 @@ export class DimBoost {
+ 
+     amount -= Effects.sum(InfinityUpgrade.resetBoost);
+     if (InfinityChallenge(5).isCompleted) amount -= 1;
++    // [AD Mod] 보너스 보상: 차원 부스트 요구량 감소 (최소 1)
++    amount = Math.max(amount - ModRewards.sum("dimBoostDiscount"), 1);
+ 
+     amount *= InfinityUpgrade.resetBoost.chargedEffect.effectOrDefault(1);
+ 
 diff --git a/src/core/dimensions/antimatter-dimension.js b/src/core/dimensions/antimatter-dimension.js
-index a0ae380..522f838 100644
+index a0ae380..354e41a 100644
 --- a/src/core/dimensions/antimatter-dimension.js
 +++ b/src/core/dimensions/antimatter-dimension.js
-@@ -49,6 +49,9 @@ export function antimatterDimensionCommonMultiplier() {
+@@ -49,6 +49,11 @@ export function antimatterDimensionCommonMultiplier() {
  
    if (Pelle.isDoomed) multiplier = multiplier.dividedBy(10);
  
 +  // [AD Mod] 반물질 차원 생산 배율
 +  multiplier = multiplier.times(ADMod.productionMultiplier);
++  // [AD Mod] 보너스 보상: 모든 반물질 차원
++  multiplier = multiplier.times(ModRewards.decimal("adMult"));
 +
    return multiplier;
  }
  
+@@ -107,6 +112,8 @@ function applyNDMultipliers(mult, tier) {
+   );
+   infinitiedMult = infinitiedMult.pow(TimeStudy(31).effectOrDefault(1));
+   multiplier = multiplier.times(infinitiedMult);
++  // [AD Mod] 보너스 보상: 특정 차원
++  multiplier = multiplier.times(ModRewards.decimal("adTierMult", tier));
+ 
+   if (tier === 1) {
+     multiplier = multiplier
+@@ -636,6 +643,8 @@ export const AntimatterDimensions = {
+       Achievement(141).effects.buyTenMult,
+       EternityChallenge(3).reward
+     );
++    // [AD Mod] 보너스 보상: 10개 구매 배율
++    mult = mult.plus(ModRewards.sum("buy10Add"));
+ 
+     mult = mult.timesEffectsOf(
+       InfinityUpgrade.buy10Mult,
+diff --git a/src/core/dimensions/infinity-dimension.js b/src/core/dimensions/infinity-dimension.js
+index 30b2916..c9db052 100644
+--- a/src/core/dimensions/infinity-dimension.js
++++ b/src/core/dimensions/infinity-dimension.js
+@@ -24,6 +24,8 @@ export function infinityDimensionCommonMultiplier() {
+   if (Replicanti.areUnlocked && Replicanti.amount.gt(1)) {
+     mult = mult.times(replicantiMult());
+   }
++  // [AD Mod] 보너스 보상: 무한 차원
++  mult = mult.times(ModRewards.decimal("idMult"));
+ 
+   return mult;
+ }
+diff --git a/src/core/dimensions/time-dimension.js b/src/core/dimensions/time-dimension.js
+index d5b97df..fde2bf7 100644
+--- a/src/core/dimensions/time-dimension.js
++++ b/src/core/dimensions/time-dimension.js
+@@ -128,6 +128,8 @@ export function timeDimensionCommonMultiplier() {
+         4)
+         .clampMin(1));
+   }
++  // [AD Mod] 보너스 보상: 시간 차원
++  mult = mult.times(ModRewards.decimal("tdMult"));
+   return mult;
+ }
+ 
+diff --git a/src/core/eternity.js b/src/core/eternity.js
+index 60d2c35..d2bfff2 100644
+--- a/src/core/eternity.js
++++ b/src/core/eternity.js
+@@ -237,6 +237,8 @@ export function gainedEternities() {
+     ? new Decimal(1)
+     : new Decimal(getAdjustedGlyphEffect("timeetermult"))
+       .timesEffectsOf(RealityUpgrade(3), Achievement(113))
++      // [AD Mod] 보너스 보상: 영원 횟수
++      .times(ModRewards.decimal("eternitiesMult"))
+       .pow(AlchemyResource.eternity.effectValue);
+ }
+ 
+diff --git a/src/core/galaxy.js b/src/core/galaxy.js
+index 3a7d5a8..be0e91c 100644
+--- a/src/core/galaxy.js
++++ b/src/core/galaxy.js
+@@ -58,6 +58,8 @@ export class Galaxy {
+ 
+     amount -= Effects.sum(InfinityUpgrade.resetBoost);
+     if (InfinityChallenge(5).isCompleted) amount -= 1;
++    // [AD Mod] 보너스 보상: 갤럭시 요구량 감소 (최소 1)
++    amount = Math.max(amount - ModRewards.sum("galaxyDiscount"), 1);
+ 
+     if (GlyphAlteration.isAdded("power")) amount *= getSecondaryGlyphEffect("powerpow");
+ 
 diff --git a/src/core/globals.js b/src/core/globals.js
-index 014784d..229f863 100644
+index 014784d..13b7182 100644
 --- a/src/core/globals.js
 +++ b/src/core/globals.js
-@@ -88,5 +88,6 @@ export * from "./shop";
+@@ -88,5 +88,7 @@ export * from "./shop";
  export * from "./tabs";
  export * from "./tab-notifications";
  export * from "./speedrun";
 +export * from "./ad-mod";
++export * from "./mod-rewards";
  
  export * from "./automator/script-templates";
+diff --git a/src/core/glyphs/auto-glyph-processor.js b/src/core/glyphs/auto-glyph-processor.js
+index c6de661..1a1bdb3 100644
+--- a/src/core/glyphs/auto-glyph-processor.js
++++ b/src/core/glyphs/auto-glyph-processor.js
+@@ -340,7 +340,9 @@ export function getGlyphLevelInputs() {
+   scaledLevel = instabilitySoftcap(scaledLevel, staticFactors.hyperInstability, 400);
+ 
+   const scalePenalty = scaledLevel > 0 ? baseLevel / scaledLevel : 1;
+-  const incAfterInstability = staticFactors.realityUpgrades + staticFactors.achievements;
++  // [AD Mod] 보너스 보상: 글리프 레벨
++  const incAfterInstability = staticFactors.realityUpgrades + staticFactors.achievements +
++    ModRewards.sum("glyphLevel");
+   baseLevel += incAfterInstability;
+   scaledLevel += incAfterInstability;
+   return {
+diff --git a/src/core/infinity-upgrades.js b/src/core/infinity-upgrades.js
+index 1ff3c1a..d99be8f 100644
+--- a/src/core/infinity-upgrades.js
++++ b/src/core/infinity-upgrades.js
+@@ -102,6 +102,8 @@ export function totalIPMult() {
+       GlyphEffect.ipMult
+     );
+   ipMult = ipMult.times(Replicanti.amount.powEffectOf(AlchemyResource.exponential));
++  // [AD Mod] 보너스 보상: IP
++  ipMult = ipMult.times(ModRewards.decimal("ipMult"));
+   return ipMult;
+ }
+ 
+diff --git a/src/core/machines.js b/src/core/machines.js
+index 056e45f..808c0ad 100644
+--- a/src/core/machines.js
++++ b/src/core/machines.js
+@@ -12,8 +12,10 @@ export const MachineHandler = {
+   },
+ 
+   get realityMachineMultiplier() {
++    // [AD Mod] 마지막 항은 보너스 보상(현실 기계) 배율
+     return ShopPurchase.RMPurchases.currentMult * Teresa.rmMultiplier * Effects.max(1, PerkShopUpgrade.rmMult) *
+-      getAdjustedGlyphEffect("effarigrm") * Achievement(167).effectOrDefault(1);
++      getAdjustedGlyphEffect("effarigrm") * Achievement(167).effectOrDefault(1) *
++      ModRewards.number("rmMult");
+   },
+ 
+   get uncappedRM() {
+diff --git a/src/core/replicanti.js b/src/core/replicanti.js
+index 5b9f5d8..f6033af 100644
+--- a/src/core/replicanti.js
++++ b/src/core/replicanti.js
+@@ -157,6 +157,8 @@ export function totalReplicantiSpeedMult(overCap) {
+       Math.clampMin(Decimal.log10(Replicanti.amount) * getSecondaryGlyphEffect("replicationdtgain"), 1));
+   }
+   totalMult = totalMult.timesEffectsOf(AlchemyResource.replication, Ra.unlocks.continuousTTBoost.effects.replicanti);
++  // [AD Mod] 보너스 보상: 레플리칸티 속도
++  totalMult = totalMult.times(ModRewards.decimal("replicantiSpeed"));
+ 
+   return totalMult;
+ }
+diff --git a/src/core/sacrifice.js b/src/core/sacrifice.js
+index bbacd58..a0d8731 100644
+--- a/src/core/sacrifice.js
++++ b/src/core/sacrifice.js
+@@ -66,7 +66,8 @@ export class Sacrifice {
+     const postIC2 = 1 + Effects.sum(Achievement(88), TimeStudy(228));
+     const triad = TimeStudy(304).effectOrDefault(1);
+ 
+-    return base * preIC2 * postIC2 * triad;
++    // [AD Mod] 보너스 보상: 차원 희생 지수
++    return base * preIC2 * postIC2 * triad * ModRewards.number("sacrificePower");
+   }
+ 
+   static get nextBoost() {
 diff --git a/src/core/secret-formula/news.js b/src/core/secret-formula/news.js
 index 2662fb0..3277100 100644
 --- a/src/core/secret-formula/news.js
@@ -65,7 +471,7 @@ index 2662fb0..3277100 100644
 +  ...modNews
  ];
 diff --git a/src/core/secret-formula/tabs.js b/src/core/secret-formula/tabs.js
-index 376688d..5d12d75 100644
+index 376688d..8f9b153 100644
 --- a/src/core/secret-formula/tabs.js
 +++ b/src/core/secret-formula/tabs.js
 @@ -69,6 +69,15 @@ export const tabs = [
@@ -84,11 +490,79 @@ index 376688d..5d12d75 100644
        }
      ]
    },
+@@ -168,6 +177,15 @@ export const tabs = [
+         component: "SecretAchievementTab",
+         id: 1,
+         hidable: true,
++      },
++      // [AD Mod] 보너스 보상 목록
++      {
++        key: "mod bonuses",
++        name: "Mod Bonuses",
++        symbol: "<i class='fas fa-gift'></i>",
++        component: "ModRewardsTab",
++        id: 2,
++        hidable: true,
+       }
+     ]
+   },
+diff --git a/src/core/tickspeed.js b/src/core/tickspeed.js
+index d3ae997..4c41134 100644
+--- a/src/core/tickspeed.js
++++ b/src/core/tickspeed.js
+@@ -23,6 +23,7 @@ export function getTickSpeedMultiplier() {
+   if (InfinityChallenge(3).isRunning) return DC.D1;
+   if (Ra.isRunning) return DC.C1D1_1245;
+   let galaxies = effectiveBaseGalaxies();
++  // [AD Mod] 마지막에 보너스 보상(갤럭시 효과) 배율을 곱한다
+   const effects = Effects.product(
+     InfinityUpgrade.galaxyBoost,
+     InfinityUpgrade.galaxyBoost.chargedEffect,
+@@ -34,7 +35,7 @@ export function getTickSpeedMultiplier() {
+     InfinityChallenge(5).reward,
+     PelleUpgrade.galaxyPower,
+     PelleRifts.decay.milestones[1]
+-  );
++  ) * ModRewards.number("galaxyStrength");
+   if (galaxies < 3) {
+     // Magic numbers are to retain balancing from before while displaying
+     // them now as positive multipliers rather than negative percentages
+@@ -172,7 +173,9 @@ export const Tickspeed = {
+       Achievement(66),
+       Achievement(83)
+     )
+-      .times(getTickSpeedMultiplier().pow(this.totalUpgrades));
++      .times(getTickSpeedMultiplier().pow(this.totalUpgrades))
++      // [AD Mod] 보너스 보상: 틱스피드 (틱 간격이 짧아짐)
++      .dividedBy(ModRewards.decimal("tickspeed"));
+   },
+ 
+   get totalUpgrades() {
 diff --git a/src/game.js b/src/game.js
-index 41a77d0..3ba0832 100644
+index 41a77d0..85472b9 100644
 --- a/src/game.js
 +++ b/src/game.js
-@@ -435,10 +435,14 @@ export function gameLoop(passDiff, options = {}) {
+@@ -132,7 +132,9 @@ function totalEPMult() {
+         TimeStudy(123),
+         RealityUpgrade(12),
+         GlyphEffect.epMult
+-      );
++      )
++      // [AD Mod] 보너스 보상: EP
++      .times(ModRewards.decimal("epMult"));
+ }
+ 
+ export function gainedEternityPoints() {
+@@ -283,6 +285,8 @@ export function gainedInfinities() {
+     Ra.unlocks.continuousTTBoost.effects.infinity
+   );
+   infGain = infGain.times(getAdjustedGlyphEffect("infinityinfmult"));
++  // [AD Mod] 보너스 보상: 무한 횟수
++  infGain = infGain.times(ModRewards.decimal("infinitiesMult"));
+   infGain = infGain.powEffectOf(SingularityMilestone.infinitiedPow);
+   return infGain;
+ }
+@@ -435,10 +439,14 @@ export function gameLoop(passDiff, options = {}) {
  
    let diff = passDiff;
    const thisUpdate = Date.now();
@@ -105,7 +579,7 @@ index 41a77d0..3ba0832 100644
  
    // For single ticks longer than a minute from the GameInterval loop, we assume that the device has gone to sleep or
    // hibernation - in those cases we stop the interval and simulate time instead. The gameLoop interval automatically
-@@ -446,7 +450,7 @@ export function gameLoop(passDiff, options = {}) {
+@@ -446,7 +454,7 @@ export function gameLoop(passDiff, options = {}) {
    // result in a ~1 second tick rate for browsers.
    // Note that we have to explicitly call all the real-time mechanics with the existing value of realDiff, because
    // simply letting it run through simulateTime seems to result in it using zero
