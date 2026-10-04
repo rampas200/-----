@@ -56,6 +56,10 @@
 ## 휴대폰으로 플레이하기
 
 푸시할 때마다 GitHub Actions(`.github/workflows/build-game.yml`)가 모드를 적용해 게임을 빌드합니다.
+빌드가 끝나면 `scripts/smoke-test.mjs`가 게임을 **휴대폰 화면 크기(390×844, 터치)** 로 열어 자동으로 확인합니다.
+확인 항목: 게임 시작, 화면 맞춤, 보너스 보상 적용, 시작 반물질, 게임 속도, Mod 탭과 Mod Bonuses 탭,
+탭으로 여는 업적 툴팁, 챌린지 상자. 하나라도 실패하면 배포하지 않습니다.
+스크린샷은 Actions 실행 결과의 `smoke-screenshots` 에 올라갑니다.
 저장소가 **공개(public)** 일 때는 빌드 결과를 `gh-pages` 브랜치에 올려 웹사이트로 띄웁니다.
 무료 GitHub 계정은 비공개 저장소에서 GitHub Pages를 쓸 수 없어서, 비공개일 때는 빌드만 합니다.
 
@@ -103,7 +107,8 @@ overlay/               원본에 새로 추가하는 파일
   public/manifest.webmanifest                        홈 화면에 추가할 때 쓰는 앱 정보
 scripts/apply-mod.sh   원본 받기 + 패치 적용 + overlay 복사
 scripts/export-mod.sh  game/ 폴더에서 고친 내용을 patches/, overlay/로 되돌려 저장
-.github/workflows/build-game.yml  모드 적용 + 빌드 + (공개 저장소일 때) gh-pages 배포
+scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모드 기능 확인 (CI에서 실행)
+.github/workflows/build-game.yml  모드 적용 + 빌드 + 휴대폰 화면 테스트 + (공개 저장소일 때) gh-pages 배포
 ```
 
 패치가 고치는 원본 파일:
