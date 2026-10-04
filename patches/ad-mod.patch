@@ -1,0 +1,116 @@
+diff --git a/src/components/tabs/index.js b/src/components/tabs/index.js
+index a5c5b7b..e44f64c 100644
+--- a/src/components/tabs/index.js
++++ b/src/components/tabs/index.js
+@@ -23,6 +23,7 @@ import MultiplierBreakdownTab from "./statistics/MultiplierBreakdownTab";
+ import NormalAchievementsTab from "./normal-achievements/NormalAchievementsTab";
+ import NormalChallengesTab from "./normal-challenges/NormalChallengesTab";
+ import OptionsGameplayTab from "./options-gameplay/OptionsGameplayTab";
++import OptionsModTab from "./options-mod/OptionsModTab";
+ import OptionsSavingTab from "./options-saving/OptionsSavingTab";
+ import OptionsVisualTab from "./options-visual/OptionsVisualTab";
+ import PastPrestigeRunsTab from "./past-prestige-runs/PastPrestigeRunsTab";
+@@ -49,6 +50,7 @@ const TabComponents = {
+   OptionsSavingTab,
+   OptionsVisualTab,
+   OptionsGameplayTab,
++  OptionsModTab,
+   StatisticsTab,
+   ChallengeRecordsTab,
+   PastPrestigeRunsTab,
+diff --git a/src/core/dimensions/antimatter-dimension.js b/src/core/dimensions/antimatter-dimension.js
+index a0ae380..522f838 100644
+--- a/src/core/dimensions/antimatter-dimension.js
++++ b/src/core/dimensions/antimatter-dimension.js
+@@ -49,6 +49,9 @@ export function antimatterDimensionCommonMultiplier() {
+ 
+   if (Pelle.isDoomed) multiplier = multiplier.dividedBy(10);
+ 
++  // [AD Mod] 반물질 차원 생산 배율
++  multiplier = multiplier.times(ADMod.productionMultiplier);
++
+   return multiplier;
+ }
+ 
+diff --git a/src/core/globals.js b/src/core/globals.js
+index 014784d..229f863 100644
+--- a/src/core/globals.js
++++ b/src/core/globals.js
+@@ -88,5 +88,6 @@ export * from "./shop";
+ export * from "./tabs";
+ export * from "./tab-notifications";
+ export * from "./speedrun";
++export * from "./ad-mod";
+ 
+ export * from "./automator/script-templates";
+diff --git a/src/core/secret-formula/news.js b/src/core/secret-formula/news.js
+index 2662fb0..3277100 100644
+--- a/src/core/secret-formula/news.js
++++ b/src/core/secret-formula/news.js
+@@ -1,5 +1,7 @@
+ import { DC } from "../constants";
+ 
++import { modNews } from "./mod-news";
++
+ // A = always there
+ // L = locked
+ // R = random chance condition
+@@ -7319,5 +7321,7 @@ export const news = [
+   {
+     id: "ai997",
+     get text() { return `The intergalactic antimatter trade has been severely disrupted, trading entire galaxies for the occasional paperclip. Cargo stands are no longer used. Oddly enough, the entire dimension has become a dumping ground for discarded plastic and other useless garbage. It's almost as if the rest of the multiverse isn't producing enough good  antiparticles to feed the growing population. Unfortunately, the situation is forcing the entire multiverse to scramble to find ways to meet the growing needs of the antimatter-eating  dev, who claims to have over ${format(Number.MAX_VALUE, 2)} specimens left to collect.`; }
+-  }
++  },
++  // [AD Mod] 한국어 뉴스
++  ...modNews
+ ];
+diff --git a/src/core/secret-formula/tabs.js b/src/core/secret-formula/tabs.js
+index 376688d..5d12d75 100644
+--- a/src/core/secret-formula/tabs.js
++++ b/src/core/secret-formula/tabs.js
+@@ -69,6 +69,15 @@ export const tabs = [
+         component: "OptionsGameplayTab",
+         id: 2,
+         hidable: false,
++      },
++      // [AD Mod] 모드 설정 탭
++      {
++        key: "mod",
++        name: "Mod",
++        symbol: "<i class='fas fa-flask'></i>",
++        component: "OptionsModTab",
++        id: 3,
++        hidable: false,
+       }
+     ]
+   },
+diff --git a/src/game.js b/src/game.js
+index 41a77d0..3ba0832 100644
+--- a/src/game.js
++++ b/src/game.js
+@@ -435,10 +435,14 @@ export function gameLoop(passDiff, options = {}) {
+ 
+   let diff = passDiff;
+   const thisUpdate = Date.now();
+-  const realDiff = diff === undefined
++  const unscaledRealDiff = diff === undefined
+     ? Math.clamp(thisUpdate - player.lastUpdate, 1, 8.64e7)
+     : diff;
+-  if (!GameStorage.ignoreBackupTimer) player.backupTimer += realDiff;
++  // [AD Mod] 게임 속도 배율. 오프라인/시뮬레이션 틱(passDiff 지정)에는 적용하지 않는다.
++  const realDiff = passDiff === undefined
++    ? unscaledRealDiff * ADMod.effectiveGameSpeed
++    : unscaledRealDiff;
++  if (!GameStorage.ignoreBackupTimer) player.backupTimer += unscaledRealDiff;
+ 
+   // For single ticks longer than a minute from the GameInterval loop, we assume that the device has gone to sleep or
+   // hibernation - in those cases we stop the interval and simulate time instead. The gameLoop interval automatically
+@@ -446,7 +450,7 @@ export function gameLoop(passDiff, options = {}) {
+   // result in a ~1 second tick rate for browsers.
+   // Note that we have to explicitly call all the real-time mechanics with the existing value of realDiff, because
+   // simply letting it run through simulateTime seems to result in it using zero
+-  if (player.options.hibernationCatchup && passDiff === undefined && realDiff > 6e4) {
++  if (player.options.hibernationCatchup && passDiff === undefined && unscaledRealDiff > 6e4) {
+     GameIntervals.gameLoop.stop();
+     simulateTime(realDiff / 1000, true);
+     realTimeMechanics(realDiff);
