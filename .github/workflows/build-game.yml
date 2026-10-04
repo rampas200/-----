@@ -1,5 +1,6 @@
 # 원본 Antimatter Dimensions에 AD Mod를 적용해서 빌드한다.
 # - 빌드 결과(dist)는 매번 Actions 아티팩트 "ad-mod-game"으로 올라간다.
+# - 휴대폰 화면 크기로 게임을 열어 모드 기능을 자동 확인한다 (scripts/smoke-test.mjs, 스크린샷은 "smoke-screenshots").
 # - 저장소가 공개(public)일 때만 gh-pages 브랜치로 배포한다.
 #   Settings > Pages 에서 "Deploy from a branch: gh-pages / (root)" 를 고르면 휴대폰 브라우저로 바로 플레이할 수 있다.
 name: Build game
@@ -48,6 +49,24 @@ jobs:
         with:
           name: ad-mod-game
           path: game/dist
+          retention-days: 14
+
+      # 빌드된 게임을 휴대폰 화면 크기로 열어서 모드 기능을 실제로 확인한다 (러너에 설치된 Chrome 사용)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Smoke test on a phone-sized screen
+        run: |
+          npm install --prefix scripts --no-save --no-package-lock --no-audit --no-fund playwright-core@1.56.1
+          node scripts/smoke-test.mjs game/dist smoke-screenshots
+
+      - name: Upload smoke test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-screenshots
+          path: smoke-screenshots
           retention-days: 14
 
       - name: Deploy to gh-pages (public repository only)
