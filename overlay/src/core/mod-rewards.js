@@ -1,14 +1,17 @@
-// [AD Mod] 보너스 보상 엔진
-// 모든 업적/비밀 업적/챌린지에 원래 보상과 별개로 "보너스 보상"을 붙인다.
-// 보상 데이터는 secret-formula/mod-rewards.js에 있고, 여기서는
-//  1) 각 보상이 지금 켜져 있는지(업적 달성, 챌린지 완료 등) 판단하고
-//  2) 같은 채널(예: 틱스피드)에 걸린 보상들을 곱하거나 더해서
-//  3) 패치된 게임 계산식이 ModRewards.decimal / number / sum 으로 가져다 쓰게 한다.
+// [AD Mod] 보너스 효과 엔진
+// 두 가지 모드 기능의 효과를 한곳에서 모아 게임 계산식에 넘긴다.
+//  - 보너스 보상: 모든 업적/비밀 업적/챌린지에 붙는 추가 보상 (secret-formula/mod-rewards.js)
+//  - 모드 업그레이드: 조건을 달성하면 해금되는 일회성 업그레이드 (secret-formula/mod-upgrades.js)
+// 여기서는
+//  1) 각 효과가 지금 켜져 있는지(업적 달성, 업그레이드 해금 등) 판단하고
+//  2) 같은 채널(예: 틱스피드)에 걸린 효과들을 곱하거나 더해서
+//  3) 패치된 게임 계산식이 ModRewards.decimal / number / sum / max 로 가져다 쓰게 한다.
 
 import { DC } from "./constants";
 import { modRewards } from "./secret-formula/mod-rewards";
+import { modUpgrades } from "./secret-formula/mod-upgrades";
 
-// 종류(kind): decimal = Decimal 곱, number = 숫자 곱, sum = 숫자 합
+// 종류(kind): decimal = Decimal 곱, number = 숫자 곱, sum = 숫자 합, max = Decimal 최댓값
 // 표시(format): 화면에 값을 보여주는 방식
 export const MOD_REWARD_CHANNELS = {
   adMult: { kind: "decimal", format: "mult", label: "모든 반물질 차원" },
@@ -33,65 +36,92 @@ export const MOD_REWARD_CHANNELS = {
   rmMult: { kind: "number", format: "mult", label: "현실 기계(RM)" },
   glyphLevel: { kind: "sum", format: "plusInt", label: "글리프 레벨" },
   blackHolePower: { kind: "number", format: "percent", label: "블랙홀 위력" },
+  // 아래는 모드 업그레이드에서 쓰는 채널 (자동 획득, 비용 증가 지연, 시작 자원)
+  passiveInfinities: { kind: "sum", format: "fractionPerSec", label: "무한 횟수 자동 획득(무한 1회분 대비)" },
+  passiveEternities: { kind: "sum", format: "fractionPerSec", label: "영원 횟수 자동 획득(영원 1회분 대비)" },
+  passiveIP: { kind: "sum", format: "fractionPerSec", label: "IP 자동 획득(지금 무한하면 얻을 양 대비)" },
+  passiveEP: { kind: "sum", format: "fractionPerSec", label: "EP 자동 획득(지금 영원하면 얻을 양 대비)" },
+  galaxyScalingDelay: { kind: "sum", format: "laterInt", label: "먼 갤럭시 비용 증가 시작" },
+  ttPerSecond: { kind: "sum", format: "plusPerSec", label: "시간 정리(TT) 생성" },
+  startingIP: { kind: "max", format: "atLeast", label: "영원 시작 IP" },
 };
+
+const bonusRewardsEnabled = () => ADMod.bonusRewards;
 
 export const MOD_REWARD_SOURCES = {
   achievement: {
     label: "업적",
+    isEnabled: bonusRewardsEnabled,
     isActive: id => Achievement(id).isEffectActive,
     title: id => `${id}. ${Achievement(id).config.name}`,
   },
   secret: {
     label: "비밀 업적",
+    isEnabled: bonusRewardsEnabled,
     isActive: id => SecretAchievement(id).isUnlocked,
     title: id => `S${id}. ${SecretAchievement(id).config.name}`,
   },
   normalChallenge: {
     label: "일반 챌린지",
+    isEnabled: bonusRewardsEnabled,
     isActive: id => NormalChallenge(id).isCompleted,
     title: id => `C${id}. ${NormalChallenge(id).config.name}`,
   },
   infinityChallenge: {
     label: "무한 챌린지",
+    isEnabled: bonusRewardsEnabled,
     isActive: id => InfinityChallenge(id).isCompleted,
     title: id => `IC${id}`,
   },
   eternityChallenge: {
     label: "영원 챌린지",
+    isEnabled: bonusRewardsEnabled,
     isActive: id => EternityChallenge(id).completions > 0,
     title: id => `EC${id}`,
     // 영원 챌린지 보상은 완료 횟수(0~5)만큼 쌓인다
     perCompletion: true,
   },
+  upgrade: {
+    label: "모드 업그레이드",
+    isEnabled: () => ADMod.modUpgrades,
+    isActive: id => ModUpgrades.isUnlocked(id),
+    title: id => ModUpgrades.byId(id).name,
+  },
 };
 
 // 데이터를 { source, id, note, parts } 목록으로 펼치고, 채널별로 묶어 둔다
-const rewardList = [];
 const byChannel = {};
 for (const channel of Object.keys(MOD_REWARD_CHANNELS)) byChannel[channel] = [];
 
-for (const [source, rewards] of Object.entries(modRewards)) {
-  for (const [id, entry] of Object.entries(rewards)) {
-    const reward = { source, id: Number(id), key: `${source}${id}`, note: entry.note, parts: entry.parts };
-    rewardList.push(reward);
-    for (const part of reward.parts) {
-      byChannel[part.channel].push({ reward, part });
-    }
-  }
+// 항목(entry)은 { note, parts } 를 가진 객체 (보너스 보상 항목 또는 모드 업그레이드)
+function register(source, id, entry) {
+  const reward = { source, id: Number(id), key: `${source}${id}`, note: entry.note, parts: entry.parts };
+  for (const part of reward.parts) byChannel[part.channel].push({ reward, part });
+  return reward;
 }
 
-const rewardIndex = new Map(rewardList.map(r => [r.key, r]));
+// 보너스 보상 목록 (Mod Bonuses 탭에 나오는 것)
+const rewardList = [];
+for (const [source, rewards] of Object.entries(modRewards)) {
+  for (const [id, entry] of Object.entries(rewards)) rewardList.push(register(source, id, entry));
+}
+// 모드 업그레이드의 효과 (Mod Upgrades 탭에서 따로 보여준다)
+const upgradeRewardList = modUpgrades.map(upgrade => register("upgrade", upgrade.id, upgrade));
+
+const rewardIndex = new Map([...rewardList, ...upgradeRewardList].map(r => [r.key, r]));
 
 function neutralValue(kind) {
   if (kind === "decimal") return DC.D1;
+  if (kind === "max") return DC.D0;
   return kind === "number" ? 1 : 0;
 }
 
-// 보상은 절대 불리하게 작용하지 않도록 곱은 1 이상, 합은 0 이상으로 자른다
+// 효과는 절대 불리하게 작용하지 않도록 곱은 1 이상, 합과 최댓값은 0 이상으로 자른다
 function sanitize(kind, value) {
-  if (kind === "decimal") {
+  if (kind === "decimal" || kind === "max") {
     const decimal = value instanceof Decimal ? value : new Decimal(value);
-    if (!Number.isFinite(decimal.mantissa) || decimal.lt(1)) return DC.D1;
+    const floor = neutralValue(kind);
+    if (!Number.isFinite(decimal.mantissa) || decimal.lt(floor)) return floor;
     return decimal;
   }
   const number = value instanceof Decimal ? value.toNumber() : Number(value);
@@ -105,6 +135,11 @@ function completionsOf(reward) {
 
 function isRewardActive(reward) {
   return MOD_REWARD_SOURCES[reward.source].isActive(reward.id);
+}
+
+// 스피드런 중에는 모든 모드 효과를 끈다
+function isSourceEnabled(source) {
+  return !ADMod.isSuspended && MOD_REWARD_SOURCES[source].isEnabled();
 }
 
 function partAppliesToTier(part, tier) {
@@ -129,6 +164,7 @@ function partValue(reward, part, tier) {
 
 function combine(kind, total, value) {
   if (kind === "decimal") return total.times(value);
+  if (kind === "max") return Decimal.max(total, value);
   return kind === "number" ? total * value : total + value;
 }
 
@@ -138,14 +174,14 @@ EventHub.logic.on(GAME_EVENT.GAME_TICK_BEFORE, () => cache.clear());
 
 function channelTotal(channel, tier) {
   const config = MOD_REWARD_CHANNELS[channel];
-  if (!ModRewards.isEnabled) return neutralValue(config.kind);
+  if (ADMod.isSuspended) return neutralValue(config.kind);
   const cacheKey = tier === undefined ? channel : `${channel}:${tier}`;
   if (cache.has(cacheKey)) return cache.get(cacheKey);
 
   let total = neutralValue(config.kind);
   for (const { reward, part } of byChannel[channel]) {
     if (config.tiered && !partAppliesToTier(part, tier)) continue;
-    if (!isRewardActive(reward)) continue;
+    if (!isSourceEnabled(reward.source) || !isRewardActive(reward)) continue;
     total = combine(config.kind, total, partValue(reward, part, tier));
   }
   cache.set(cacheKey, total);
@@ -169,6 +205,10 @@ function formatChannelValue(channel, value) {
     case "plus": return `+${formatNumberish(value)}`;
     case "plusInt": return `+${formatInt(value)}`;
     case "minus": return `-${formatInt(value)}`;
+    case "fractionPerSec": return `${formatPercents(Number(value), Number.isInteger(Number(value) * 100) ? 0 : 1)}/초`;
+    case "laterInt": return `${formatInt(value)}개 늦게`;
+    case "plusPerSec": return `+${formatNumberish(value)}/초`;
+    case "atLeast": return `최소 ${format(value, 2, 0)}`;
     default: return `${value}`;
   }
 }
@@ -205,10 +245,13 @@ export const ModRewards = {
   channels: MOD_REWARD_CHANNELS,
   sources: MOD_REWARD_SOURCES,
   list: rewardList,
+  upgradeList: upgradeRewardList,
 
+  // 보너스 보상(업적/챌린지)이 켜져 있는지. 모드 업그레이드는 ADMod.modUpgrades로 따로 켜고 끈다.
   get isEnabled() {
-    return ADMod.bonusRewards && !ADMod.isSuspended;
+    return isSourceEnabled("achievement");
   },
+  isSourceEnabled,
 
   invalidate() {
     cache.clear();
@@ -224,6 +267,9 @@ export const ModRewards = {
   sum(channel) {
     return channelTotal(channel);
   },
+  max(channel) {
+    return channelTotal(channel);
+  },
 
   find(source, id) {
     return rewardIndex.get(`${source}${id}`);
@@ -235,7 +281,7 @@ export const ModRewards = {
     return MOD_REWARD_SOURCES[reward.source].title(reward.id);
   },
   describe(reward) {
-    const isActive = this.isEnabled && isRewardActive(reward);
+    const isActive = isSourceEnabled(reward.source) && isRewardActive(reward);
     return reward.parts.map(part => describePart(reward, part, isActive)).join(", ");
   },
   formatChannelValue,

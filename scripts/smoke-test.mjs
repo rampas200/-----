@@ -122,7 +122,8 @@ try {
   await page.evaluate(() => Tab.options.mod.show(true));
   await wait(800);
   const modTab = await text();
-  check("Options → Mod 탭", modTab.includes(`AD Mod v${basics.version}`) && modTab.includes("업적/챌린지 보너스 보상"));
+  check("Options → Mod 탭", modTab.includes(`AD Mod v${basics.version}`) && modTab.includes("업적/챌린지 보너스 보상") &&
+    modTab.includes("모드 업그레이드 효과"));
   await page.screenshot({ path: `${SHOTS}/2-mod-tab.png` });
 
   // Achievements -> Mod Bonuses 탭
@@ -152,6 +153,57 @@ try {
   const boxBonuses = await page.locator(".c-challenge-box .c-ad-mod-bonus").count();
   check("일반 챌린지 상자 12개에 모드 보너스 표시", boxBonuses === 12, `${boxBonuses}개`);
   await page.screenshot({ path: `${SHOTS}/5-challenges.png` });
+
+  // ---- 모드 업그레이드 ----
+  const counts = await page.evaluate(() => ({ list: ModUpgrades.list.length, effects: ModRewards.upgradeList.length }));
+  check("모드 업그레이드 30개 로드", counts.list === 30 && counts.effects === 30, JSON.stringify(counts));
+
+  // 1번 "압축된 출발": 차원 부스트 없이 반물질 1e20 -> 조건을 맞추면 다음 틱에 해금
+  const up1 = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const before = ModUpgrades.isUnlocked(1);
+    Currency.antimatter.bumpTo(new Decimal(1e21));
+    await sleep(500);
+    return { before, after: ModUpgrades.isUnlocked(1), boosts: player.dimensionBoosts };
+  });
+  check("조건 달성 시 자동 해금 (1번: 부스트 없이 반물질 1e20)", !up1.before && up1.after, JSON.stringify(up1));
+  const toast = await text();
+  check("해금 알림 표시", toast.includes("모드 업그레이드 해금: 압축된 출발"));
+
+  // 6번 "무한의 흐름": 총 무한 100회 -> 매초 무한 1회분의 10% 자동 획득
+  const flow = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    player.infinities = new Decimal(150);
+    await sleep(500);
+    const unlocked = ModUpgrades.isUnlocked(6);
+    const start = Currency.infinities.value.toNumber();
+    ADMod.gameSpeed = 100;
+    await sleep(2000);
+    ADMod.gameSpeed = 1;
+    return { unlocked, rate: ModRewards.sum("passiveInfinities"), gained: Currency.infinities.value.toNumber() - start };
+  });
+  check("무한 횟수 자동 획득 (6번: 무한의 흐름)", flow.unlocked && flow.rate === 0.1 && flow.gained >= 10,
+    JSON.stringify(flow));
+
+  // 해금 상태가 세이브에 저장되고 새로고침 후에도 남는지
+  await page.evaluate(() => GameStorage.save(true));
+  await page.reload({ waitUntil: "load" });
+  await page.waitForFunction(() => window.GameUI?.initialized === true, null, { timeout: 60000 });
+  await wait(1500);
+  const persisted = await page.evaluate(() => ({
+    up1: ModUpgrades.isUnlocked(1), up6: ModUpgrades.isUnlocked(6), bits: player.adMod.upgradeBits,
+  }));
+  check("새로고침 후에도 해금 유지 (세이브 저장)", persisted.up1 && persisted.up6, JSON.stringify(persisted));
+
+  await page.evaluate(() => Tab.achievements["mod upgrades"].show(true));
+  await wait(1000);
+  const cards = await page.locator(".c-ad-mod-upgrade").count();
+  const unlockedCards = await page.locator(".c-ad-mod-upgrade--unlocked").count();
+  const upgradesTab = await text();
+  check("Achievements → Mod Upgrades 탭 (카드 30장, 해금 2장)",
+    cards === 30 && unlockedCards === 2 && /해금:\s*2\s*\/\s*30/u.test(upgradesTab),
+    `cards ${cards}, unlocked ${unlockedCards}`);
+  await page.screenshot({ path: `${SHOTS}/6-mod-upgrades.png`, fullPage: true });
 
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {

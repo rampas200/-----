@@ -16,6 +16,8 @@ const DEFAULT_SETTINGS = {
   koreanNews: true,
   // 업적/챌린지 보너스 보상 적용 여부
   bonusRewards: true,
+  // 모드 업그레이드(조건 달성형 일회성 업그레이드) 효과 적용 여부. 해금 기록은 꺼도 유지된다.
+  modUpgrades: true,
 };
 
 export const AD_MOD_LIMITS = {
@@ -50,9 +52,9 @@ function saveSettings() {
 
 export const ADMod = {
   name: "AD Mod",
-  version: "0.2.0",
+  version: "0.3.0",
 
-  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 속도/생산 배율과 보너스 보상을 끈다.
+  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 속도/생산 배율, 보너스 보상, 모드 업그레이드를 끈다.
   get isSuspended() {
     return player.speedrun.isActive;
   },
@@ -86,6 +88,15 @@ export const ADMod = {
   },
   set bonusRewards(value) {
     settings.bonusRewards = Boolean(value);
+    saveSettings();
+    ModRewards.invalidate();
+  },
+
+  get modUpgrades() {
+    return Boolean(settings.modUpgrades);
+  },
+  set modUpgrades(value) {
+    settings.modUpgrades = Boolean(value);
     saveSettings();
     ModRewards.invalidate();
   },

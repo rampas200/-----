@@ -13,6 +13,7 @@
 | 반물질 차원 생산 배율 | ×1 ~ ×1e100. 모든 반물질 차원의 공통 배율에 곱해집니다. |
 | 한국어 뉴스 | 화면 위 뉴스 티커에 한국어 메시지 20개를 추가합니다. 끄면 나오지 않습니다. |
 | 업적/챌린지 보너스 보상 | 아래 [보너스 보상](#보너스-보상) 참고. 끄면 원래 게임 밸런스로 돌아갑니다. |
+| 모드 업그레이드 효과 | 아래 [모드 업그레이드](#모드-업그레이드) 참고. 꺼도 해금 기록은 남습니다. |
 | 설정 초기화 | 모드 설정을 기본값으로 되돌립니다. |
 
 - 모드 설정은 세이브 파일이 아니라 브라우저 `localStorage`(`ADModSettings` 키)에 따로 저장합니다.
@@ -53,12 +54,35 @@
 - **데이터 위치:** `overlay/src/core/secret-formula/mod-rewards.js` 에 보상이 한 줄에 하나씩 있어서
   값이나 메모를 바로 고칠 수 있습니다.
 
+## 모드 업그레이드
+
+현실(Reality)의 일회성 업그레이드처럼 **조건 + 효과** 로 된 업그레이드 30개를 현실 이전 단계에 추가했습니다.
+현실 업그레이드와 달리 **구매하지 않습니다.** 조건을 달성하는 순간 영구히 해금되고 알림이 뜹니다.
+**Achievements → Mod Upgrades** 탭에서 6단계 × 5개 카드로 조건, 효과, 진행 상황을 볼 수 있습니다.
+
+| 단계 | 업그레이드 (조건 → 효과) |
+| --- | --- |
+| 1 반물질 | 압축된 출발 (부스트 없이 반물질 1e20 → 부스트 1회당 모든 차원 ×1.1), 고독한 은하 (갤럭시 없이 무한 → 갤럭시당 틱스피드 ×1.02), 희생의 미학, 8 없는 무한, 손수 만든 무한 |
+| 2 무한 초반 | **무한의 흐름** (무한 100회 → 매초 무한 1회분의 10% 자동 획득), 셀 수 없는 구성, 도전 정신, 업그레이드 애호가, 빠른 손 |
+| 3 무한 후반 | **한계 너머** (브레이크 후 한 번에 IP 1e20 → 매초 IP 1% 자동 획득), 무한 차원 개척자, 무한 챌린지 정복자 (먼 갤럭시 비용 증가 지연), 레플리칸티 각성, 무한 파워 충전 |
+| 4 영원 초반 | **영원의 흐름** (영원 100회 → 매초 영원 1회분의 10% 자동 획득), 복제 없는 영원, 독학의 영원, 영원의 순간 (1분 안에 영원 → 영원 시작 IP 1e30), 무한 은행 |
+| 5 영원 후반 | 텔레메카닉 (시간 차원 5~8 없이 EP 1e100), 역설의 영원, 영원 챌린지 탐험가, **영원의 샘** (EP 1e200 → 매초 EP 1% 자동 획득), 연구 수집가 (TT 자동 생성) |
+| 6 시간 팽창 | 팽창 입문, 팽창 속 질주, 타키온 가속, 팽창 시간 축적 (TT 자동 생성), 현실의 문턱 (EP 1e3000 → 첫 현실 RM ×3, 글리프 레벨 +10) |
+
+- 현실 업그레이드처럼 "**~없이** ~하기" 조건이 많습니다. 이번 판에서 이미 조건을 어겼으면 카드에 "이번 판에서는 실패"가 표시되고, 다음 판에 다시 도전할 수 있습니다.
+- 몇몇은 현실 업그레이드를 그대로 본떴습니다. 예: 'The Boundless Flow' → 무한의 흐름, 'Cosmic Conglomerate' → 무한 챌린지 정복자.
+- 해금 상태는 **세이브에 저장**됩니다. 내보내기/가져오기에 함께 들어가고, 하드 리셋하면 초기화됩니다.
+  (모드 설정은 브라우저에 따로 저장)
+- IP/EP 자동 획득은 챌린지 안에서는 멈춥니다. 무한/영원 횟수 자동 획득은 EC4 안에서 멈춥니다.
+- 데이터 위치: `overlay/src/core/secret-formula/mod-upgrades.js`
+
 ## 휴대폰으로 플레이하기
 
 푸시할 때마다 GitHub Actions(`.github/workflows/build-game.yml`)가 모드를 적용해 게임을 빌드합니다.
 빌드가 끝나면 `scripts/smoke-test.mjs`가 게임을 **휴대폰 화면 크기(390×844, 터치)** 로 열어 자동으로 확인합니다.
 확인 항목: 게임 시작, 화면 맞춤, 보너스 보상 적용, 시작 반물질, 게임 속도, Mod 탭과 Mod Bonuses 탭,
-탭으로 여는 업적 툴팁, 챌린지 상자. 하나라도 실패하면 배포하지 않습니다.
+탭으로 여는 업적 툴팁, 챌린지 상자, 모드 업그레이드 자동 해금과 알림, 무한 횟수 자동 획득,
+새로고침 후 해금 유지, Mod Upgrades 탭. 하나라도 실패하면 배포하지 않습니다.
 스크린샷은 Actions 실행 결과의 `smoke-screenshots` 에 올라갑니다.
 저장소가 **공개(public)** 일 때는 빌드 결과를 `gh-pages` 브랜치에 올려 웹사이트로 띄웁니다.
 무료 GitHub 계정은 비공개 저장소에서 GitHub Pages를 쓸 수 없어서, 비공개일 때는 빌드만 합니다.
@@ -103,9 +127,12 @@ overlay/               원본에 새로 추가하는 파일
   src/core/ad-mod.js                                 모드 설정 (ADMod 전역 객체)
   src/core/mod-rewards.js                            보너스 보상 엔진 (ModRewards 전역 객체)
   src/core/secret-formula/mod-rewards.js             보너스 보상 208개 데이터
+  src/core/mod-upgrades.js                           모드 업그레이드 해금 처리 (ModUpgrades 전역 객체)
+  src/core/secret-formula/mod-upgrades.js            모드 업그레이드 30개 데이터
   src/core/secret-formula/mod-news.js                한국어 뉴스
   src/components/ModBonusLine.vue                    툴팁/챌린지 상자의 "모드 보너스" 줄
   src/components/tabs/mod-rewards/ModRewardsTab.vue  Achievements → Mod Bonuses 탭 화면
+  src/components/tabs/mod-upgrades/ModUpgradesTab.vue Achievements → Mod Upgrades 탭 화면
   src/components/tabs/options-mod/OptionsModTab.vue  Options → Mod 탭 화면
   public/manifest.webmanifest                        홈 화면에 추가할 때 쓰는 앱 정보
 scripts/apply-mod.sh   원본 받기 + 패치 적용 + overlay 복사
@@ -118,19 +145,20 @@ scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모
 
 | 파일 | 변경 내용 |
 | --- | --- |
-| `src/game.js` | 게임 속도 배율, 무한 횟수/EP 보너스 |
+| `src/game.js` | 게임 속도 배율, 무한 횟수/EP 보너스, 무한/영원 횟수·IP·EP 자동 획득, TT 생성 |
 | `src/core/dimensions/antimatter-dimension.js` | 생산 배율, 모든/특정 차원 보너스, 10개 구매 배율 보너스 |
 | `src/core/tickspeed.js` | 틱스피드, 갤럭시 효과 보너스 |
-| `src/core/dimboost.js`, `src/core/galaxy.js` | 차원 부스트 배율, 부스트/갤럭시 요구량 보너스 |
-| `src/core/currency.js`, `src/core/sacrifice.js` | 시작 반물질, 차원 희생 보너스 |
+| `src/core/dimboost.js`, `src/core/galaxy.js` | 차원 부스트 배율, 부스트/갤럭시 요구량 보너스, 먼 갤럭시 비용 증가 지연 |
+| `src/core/currency.js`, `src/core/sacrifice.js` | 시작 반물질, 영원 시작 IP, 차원 희생 보너스 |
+| `src/core/player.js` | 세이브에 모드 업그레이드 해금 상태(`adMod.upgradeBits`) 추가 |
 | `src/core/infinity-upgrades.js`, `src/core/replicanti.js` | IP, 레플리칸티 속도 보너스 |
 | `src/core/dimensions/infinity-dimension.js`, `src/core/dimensions/time-dimension.js` | 무한/시간 차원 보너스 |
 | `src/core/eternity.js`, `src/core/dilation.js` | 영원 횟수, 타키온 입자, 팽창 시간 보너스 |
 | `src/core/machines.js`, `src/core/glyphs/auto-glyph-processor.js`, `src/core/black-hole.js` | 현실 기계, 글리프 레벨, 블랙홀 보너스 |
 | 업적/챌린지 화면 컴포넌트 5개 | 툴팁과 챌린지 상자에 "모드 보너스" 줄 추가 |
 | `src/core/secret-formula/news.js` | 한국어 뉴스 목록 추가 |
-| `src/core/secret-formula/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses 탭 추가 |
-| `src/core/globals.js` | `ADMod`, `ModRewards`를 전역으로 노출 |
+| `src/core/secret-formula/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses / Mod Upgrades 탭 추가 |
+| `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`를 전역으로 노출 |
 | `public/index.html` | 모바일 화면 맞춤(viewport), 홈 화면 앱 설정 |
 
 ## 모드 고치기

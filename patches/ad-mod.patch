@@ -57,14 +57,15 @@ index 2d87893..34be84c 100644
    </EternityChallengeBoxWrapper>
  </template>
 diff --git a/src/components/tabs/index.js b/src/components/tabs/index.js
-index a5c5b7b..694c150 100644
+index a5c5b7b..fa98786 100644
 --- a/src/components/tabs/index.js
 +++ b/src/components/tabs/index.js
-@@ -19,10 +19,12 @@ import InfinityChallengesTab from "./infinity-challenges/InfinityChallengesTab";
+@@ -19,10 +19,13 @@ import InfinityChallengesTab from "./infinity-challenges/InfinityChallengesTab";
  import InfinityDimensionsTab from "./infinity-dimensions/InfinityDimensionsTab";
  import InfinityUpgradesTab from "./infinity-upgrades/InfinityUpgradesTab";
  import LaitelaTab from "./celestial-laitela/LaitelaTab";
 +import ModRewardsTab from "./mod-rewards/ModRewardsTab";
++import ModUpgradesTab from "./mod-upgrades/ModUpgradesTab";
  import MultiplierBreakdownTab from "./statistics/MultiplierBreakdownTab";
  import NormalAchievementsTab from "./normal-achievements/NormalAchievementsTab";
  import NormalChallengesTab from "./normal-challenges/NormalChallengesTab";
@@ -73,7 +74,7 @@ index a5c5b7b..694c150 100644
  import OptionsSavingTab from "./options-saving/OptionsSavingTab";
  import OptionsVisualTab from "./options-visual/OptionsVisualTab";
  import PastPrestigeRunsTab from "./past-prestige-runs/PastPrestigeRunsTab";
-@@ -49,6 +51,7 @@ const TabComponents = {
+@@ -49,6 +52,7 @@ const TabComponents = {
    OptionsSavingTab,
    OptionsVisualTab,
    OptionsGameplayTab,
@@ -81,11 +82,12 @@ index a5c5b7b..694c150 100644
    StatisticsTab,
    ChallengeRecordsTab,
    PastPrestigeRunsTab,
-@@ -57,6 +60,7 @@ const TabComponents = {
+@@ -57,6 +61,8 @@ const TabComponents = {
    PreviousSpeedrunTab,
    NormalAchievementsTab,
    SecretAchievementTab,
 +  ModRewardsTab,
++  ModUpgradesTab,
    TeresaTab,
    EffarigTab,
    EnslavedTab,
@@ -231,7 +233,7 @@ index cee79a4..f3cd1e4 100644
  
    /**
 diff --git a/src/core/currency.js b/src/core/currency.js
-index cb16d1c..395cab5 100644
+index cb16d1c..3114b05 100644
 --- a/src/core/currency.js
 +++ b/src/core/currency.js
 @@ -233,6 +233,7 @@ Currency.antimatter = new class extends DecimalCurrency {
@@ -251,6 +253,21 @@ index cb16d1c..395cab5 100644
    }
  }();
  
+@@ -282,12 +283,13 @@ Currency.infinityPoints = new class extends DecimalCurrency {
+ 
+   get startingValue() {
+     if (Pelle.isDisabled()) return new Decimal(0);
++    // [AD Mod] 모드 업그레이드의 영원 시작 IP와 비교해 더 큰 값
+     return Effects.max(
+       0,
+       Perk.startIP1,
+       Perk.startIP2,
+       Achievement(104)
+-    ).toDecimal();
++    ).toDecimal().max(ModRewards.max("startingIP"));
+   }
+ 
+   reset() {
 diff --git a/src/core/dilation.js b/src/core/dilation.js
 index 9e5228f..1ed25db 100644
 --- a/src/core/dilation.js
@@ -377,7 +394,7 @@ index 60d2c35..d2bfff2 100644
  }
  
 diff --git a/src/core/galaxy.js b/src/core/galaxy.js
-index 3a7d5a8..be0e91c 100644
+index 3a7d5a8..50d18f4 100644
 --- a/src/core/galaxy.js
 +++ b/src/core/galaxy.js
 @@ -58,6 +58,8 @@ export class Galaxy {
@@ -389,16 +406,33 @@ index 3a7d5a8..be0e91c 100644
  
      if (GlyphAlteration.isAdded("power")) amount *= getSecondaryGlyphEffect("powerpow");
  
+@@ -95,13 +97,14 @@ export class Galaxy {
+     return null;
+   }
+ 
++  // [AD Mod] 마지막 항은 모드 업그레이드(먼 갤럭시 비용 증가 지연)
+   static get costScalingStart() {
+     return 100 + TimeStudy(302).effectOrDefault(0) + Effects.sum(
+       TimeStudy(223),
+       TimeStudy(224),
+       EternityChallenge(5).reward,
+       GlyphSacrifice.power
+-    );
++    ) + ModRewards.sum("galaxyScalingDelay");
+   }
+ 
+   static get type() {
 diff --git a/src/core/globals.js b/src/core/globals.js
-index 014784d..13b7182 100644
+index 014784d..0286368 100644
 --- a/src/core/globals.js
 +++ b/src/core/globals.js
-@@ -88,5 +88,7 @@ export * from "./shop";
+@@ -88,5 +88,8 @@ export * from "./shop";
  export * from "./tabs";
  export * from "./tab-notifications";
  export * from "./speedrun";
 +export * from "./ad-mod";
 +export * from "./mod-rewards";
++export * from "./mod-upgrades";
  
  export * from "./automator/script-templates";
 diff --git a/src/core/glyphs/auto-glyph-processor.js b/src/core/glyphs/auto-glyph-processor.js
@@ -445,6 +479,21 @@ index 056e45f..808c0ad 100644
    },
  
    get uncappedRM() {
+diff --git a/src/core/player.js b/src/core/player.js
+index eac84b0..1fb1f05 100644
+--- a/src/core/player.js
++++ b/src/core/player.js
+@@ -237,6 +237,10 @@ window.player = {
+     Eternity: true,
+     Infinity: true
+   },
++  // [AD Mod] 모드 업그레이드 해금 상태 (비트마스크, 업그레이드 id = 비트 번호)
++  adMod: {
++    upgradeBits: 0,
++  },
+   requirementChecks: {
+     infinity: {
+       maxAll: false,
 diff --git a/src/core/replicanti.js b/src/core/replicanti.js
 index 5b9f5d8..f6033af 100644
 --- a/src/core/replicanti.js
@@ -494,7 +543,7 @@ index 2662fb0..3277100 100644
 +  ...modNews
  ];
 diff --git a/src/core/secret-formula/tabs.js b/src/core/secret-formula/tabs.js
-index 376688d..8f9b153 100644
+index 376688d..c05580b 100644
 --- a/src/core/secret-formula/tabs.js
 +++ b/src/core/secret-formula/tabs.js
 @@ -69,6 +69,15 @@ export const tabs = [
@@ -513,7 +562,7 @@ index 376688d..8f9b153 100644
        }
      ]
    },
-@@ -168,6 +177,15 @@ export const tabs = [
+@@ -168,6 +177,24 @@ export const tabs = [
          component: "SecretAchievementTab",
          id: 1,
          hidable: true,
@@ -525,6 +574,15 @@ index 376688d..8f9b153 100644
 +        symbol: "<i class='fas fa-gift'></i>",
 +        component: "ModRewardsTab",
 +        id: 2,
++        hidable: true,
++      },
++      // [AD Mod] 모드 업그레이드 (조건 달성형 일회성 업그레이드)
++      {
++        key: "mod upgrades",
++        name: "Mod Upgrades",
++        symbol: "<i class='fas fa-cubes'></i>",
++        component: "ModUpgradesTab",
++        id: 3,
 +        hidable: true,
        }
      ]
@@ -562,7 +620,7 @@ index d3ae997..4c41134 100644
  
    get totalUpgrades() {
 diff --git a/src/game.js b/src/game.js
-index 41a77d0..85472b9 100644
+index 41a77d0..bc5dec1 100644
 --- a/src/game.js
 +++ b/src/game.js
 @@ -132,7 +132,9 @@ function totalEPMult() {
@@ -611,3 +669,56 @@ index 41a77d0..85472b9 100644
      GameIntervals.gameLoop.stop();
      simulateTime(realDiff / 1000, true);
      realTimeMechanics(realDiff);
+@@ -681,6 +689,15 @@ function passivePrestigeGen() {
+     player.reality.partEternitied = player.reality.partEternitied.sub(player.reality.partEternitied.floor());
+   }
+ 
++  // [AD Mod] 모드 업그레이드: 매초 영원 1회분의 일정 비율만큼 영원 횟수 자동 획득
++  const modEternityRate = ModRewards.sum("passiveEternities");
++  if (modEternityRate > 0) {
++    player.reality.partEternitied = player.reality.partEternitied
++      .plus(gainedEternities().times(modEternityRate * Time.deltaTime));
++    Currency.eternities.add(player.reality.partEternitied.floor());
++    player.reality.partEternitied = player.reality.partEternitied.sub(player.reality.partEternitied.floor());
++  }
++
+   if (!EternityChallenge(4).isRunning) {
+     let infGen = DC.D0;
+     if (BreakInfinityUpgrade.infinitiedGen.isBought) {
+@@ -696,6 +713,9 @@ function passivePrestigeGen() {
+     if (RealityUpgrade(11).isBought) {
+       infGen = infGen.plus(RealityUpgrade(11).effectValue.times(Time.deltaTime));
+     }
++    // [AD Mod] 모드 업그레이드: 매초 무한 1회분의 일정 비율만큼 무한 횟수 자동 획득
++    const modInfinityRate = ModRewards.sum("passiveInfinities");
++    if (modInfinityRate > 0) infGen = infGen.plus(gainedInfinities().times(modInfinityRate * Time.deltaTime));
+     if (EffarigUnlock.eternity.isUnlocked) {
+       // We consider half of the eternities we gained above this tick
+       // to have been gained before the infinities, and thus not to
+@@ -825,6 +845,16 @@ function applyAutoprestige(diff) {
+   if (PelleRifts.chaos.milestones[2].canBeApplied) {
+     Currency.eternityPoints.add(gainedEternityPoints().times(DC.D0_1).times(diff / 1000));
+   }
++
++  // [AD Mod] 모드 업그레이드: 지금 무한/영원하면 얻을 IP/EP의 일정 비율을 매초 자동 획득 (챌린지 밖에서만)
++  const modIPRate = ModRewards.sum("passiveIP");
++  if (modIPRate > 0 && player.break && !Player.isInAntimatterChallenge) {
++    Currency.infinityPoints.add(gainedInfinityPoints().times(modIPRate * Time.deltaTime));
++  }
++  const modEPRate = ModRewards.sum("passiveEP");
++  if (modEPRate > 0 && Player.canEternity && !EternityChallenge.isRunning) {
++    Currency.eternityPoints.add(gainedEternityPoints().times(modEPRate * Time.deltaTime));
++  }
+ }
+ 
+ function updateImaginaryMachines(diff) {
+@@ -873,7 +903,8 @@ export function getTTPerSecond() {
+     finalTT = finalTT.pow(SingularityMilestone.theoremPowerFromSingularities.effectOrDefault(1));
+   }
+ 
+-  return finalTT;
++  // [AD Mod] 모드 업그레이드: 시간 정리 추가 생성
++  return finalTT.add(ModRewards.sum("ttPerSecond"));
+ }
+ 
+ // eslint-disable-next-line no-unused-vars

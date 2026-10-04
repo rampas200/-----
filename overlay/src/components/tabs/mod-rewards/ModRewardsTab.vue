@@ -89,13 +89,20 @@ export default {
           continue;
         }
         let value;
-        if (config.kind === "decimal") value = ModRewards.decimal(channel);
-        else if (config.kind === "number") value = ModRewards.number(channel);
-        else value = ModRewards.sum(channel);
         let isNeutral;
-        if (config.kind === "decimal") isNeutral = value.lte(1);
-        else if (config.kind === "number") isNeutral = value <= 1;
-        else isNeutral = value === 0;
+        if (config.kind === "decimal") {
+          value = ModRewards.decimal(channel);
+          isNeutral = value.lte(1);
+        } else if (config.kind === "max") {
+          value = ModRewards.max(channel);
+          isNeutral = value.lte(0);
+        } else if (config.kind === "number") {
+          value = ModRewards.number(channel);
+          isNeutral = value <= 1;
+        } else {
+          value = ModRewards.sum(channel);
+          isNeutral = value === 0;
+        }
         if (!isNeutral) totals.push({ key: channel, channel, label: config.label, value });
       }
       return totals.map(total => ({
@@ -125,7 +132,7 @@ export default {
       v-if="totals.length > 0"
       class="c-ad-mod-rewards__totals"
     >
-      <b>현재 받고 있는 효과 합계</b>
+      <b>현재 받고 있는 효과 합계 (보너스 보상 + 모드 업그레이드)</b>
       <div class="c-ad-mod-rewards__total-list">
         <span
           v-for="total in totals"
