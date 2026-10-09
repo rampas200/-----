@@ -321,6 +321,101 @@ try {
   await wait(300);
   await page.screenshot({ path: `${SHOTS}/8-dilation-achievement-studies.png` });
 
+  // 모드 퍽: 원래 퍽 트리 끝에서 이어지는 36개
+  const perkData = await page.evaluate(() => {
+    const seen = new Set([0]);
+    const queue = [Perk.firstPerk];
+    while (queue.length > 0) {
+      for (const next of queue.shift().connectedPerks) {
+        if (!seen.has(next.id)) {
+          seen.add(next.id);
+          queue.push(next);
+        }
+      }
+    }
+    return {
+      all: Perks.all.length, mod: ModPerks.count, reachable: seen.size,
+      effects: ModRewards.perkList.length, pelle: ModPerks.pelleUselessIds.every(id => Pelle.uselessPerks.includes(id)),
+    };
+  });
+  check("모드 퍽 36개 데이터 (모두 START에서 이어짐)",
+    perkData.all === 84 && perkData.mod === 36 && perkData.reachable === 84 && perkData.effects === 29 && perkData.pelle,
+    JSON.stringify(perkData));
+
+  // 퍽 구매: START → SAM → ANR → AD+ (모든 반물질 차원 ×1e100), SAM → SAM2 (시작 반물질 1e200)
+  // 다른 효과는 매 틱 바뀔 수 있으니, 모드 퍽을 껐을 때와 켰을 때의 비율을 같은 순간에 잰다
+  const perkBuy = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const perkRatio = () => {
+      ADMod.modPerks = false;
+      const off = ModRewards.decimal("adMult");
+      ADMod.modPerks = true;
+      return ModRewards.decimal("adMult").div(off).log10();
+    };
+    player.realities = 1;
+    Currency.perkPoints.bumpTo(100);
+    const ratioBefore = perkRatio();
+    const lockedBuy = Perk.modADMult.purchase();
+    for (const perk of [Perk.firstPerk, Perk.startAM, Perk.antimatterNoReset, Perk.modADMult, Perk.modStartAM]) {
+      perk.purchase();
+    }
+    await sleep(300);
+    const result = {
+      ratioBefore,
+      lockedBuy,
+      bought: Perk.modADMult.isBought && Perk.modStartAM.isBought,
+      adRatio: perkRatio(),
+      startAM: Currency.antimatter.startingValue.log10(),
+      pp: Currency.perkPoints.value,
+    };
+    ADMod.modPerks = false;
+    await sleep(300);
+    result.off = {
+      applied: Perk.modADMult.canBeApplied, canBuy: Perk.modGalaxyStrength.canBeBought,
+      startAM: Currency.antimatter.startingValue.log10(),
+    };
+    ADMod.modPerks = true;
+    await sleep(300);
+    result.on = { applied: Perk.modADMult.canBeApplied, canBuy: Perk.modGalaxyStrength.canBeBought };
+    return result;
+  });
+  check("모드 퍽 구매와 효과 (AD+ ×1e100, SAM2 시작 반물질 1e200)",
+    Math.abs(perkBuy.ratioBefore) < 1e-6 && !perkBuy.lockedBuy && perkBuy.bought && Math.abs(perkBuy.adRatio - 100) < 1e-6 &&
+    perkBuy.startAM >= 200 && perkBuy.pp === 95, JSON.stringify(perkBuy));
+  check("모드 퍽 끄기/켜기 (효과·구매 멈춤 → 복구)",
+    !perkBuy.off.applied && !perkBuy.off.canBuy && perkBuy.off.startAM < 200 && perkBuy.on.applied && perkBuy.on.canBuy,
+    JSON.stringify({ off: perkBuy.off, on: perkBuy.on }));
+
+  // 퍽 탭: 별 모양 모드 퍽, 정보 칸, 터치는 첫 탭에 설명만 보여주고 두 번째 탭에 산다
+  await page.evaluate(() => Tab.reality.perks.show(true));
+  await wait(2500);
+  const perkTab = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const tap = id => PerkNetwork.network.emit("click", { nodes: [id], edges: [], event: { pointerType: "touch" } });
+    const info = () => document.querySelector(".c-ad-mod-perk-info")?.innerText ?? "";
+    tap(Perk.modGalaxyStrength.id);
+    await sleep(400);
+    const firstTap = { bought: Perk.modGalaxyStrength.isBought, info: info() };
+    tap(Perk.modGalaxyStrength.id);
+    await sleep(400);
+    return {
+      nodes: PerkNetwork.nodes.length,
+      star: PerkNetwork.nodes.get(Perk.modADMult.id).shape,
+      firstTap,
+      secondTapBought: Perk.modGalaxyStrength.isBought,
+      infoAfter: info(),
+    };
+  });
+  check("퍽 탭에 모드 퍽 84개 노드 (별 모양)", perkTab.nodes === 84 && perkTab.star === "star",
+    `${perkTab.nodes}, ${perkTab.star}`);
+  check("터치: 첫 탭은 설명, 두 번째 탭에 구매",
+    !perkTab.firstTap.bought && perkTab.firstTap.info.includes("GAL+") && perkTab.firstTap.info.includes("한 번 더 탭하면") &&
+    perkTab.secondTapBought && perkTab.infoAfter.includes("구매함"), perkTab.firstTap.info.replace(/\s+/gu, " "));
+  await page.screenshot({ path: `${SHOTS}/9-mod-perks.png` });
+  await page.evaluate(() => PerkNetwork.network.moveTo({ scale: 0.25 }));
+  await wait(500);
+  await page.screenshot({ path: `${SHOTS}/10-mod-perks-zoomed-out.png` });
+
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {
   check("테스트 실행", false, error.stack);

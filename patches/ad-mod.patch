@@ -188,6 +188,86 @@ index 5557e4e..05f69f7 100644
      </template>
    </ChallengeBox>
  </template>
+diff --git a/src/components/tabs/perks/PerksTab.vue b/src/components/tabs/perks/PerksTab.vue
+index 1b778a3..f30b729 100644
+--- a/src/components/tabs/perks/PerksTab.vue
++++ b/src/components/tabs/perks/PerksTab.vue
+@@ -4,10 +4,13 @@ import { DataSet, Network } from "vis-network";
+ import { PERK_FAMILY } from "@/core/secret-formula";
+ import PerkPointLabel from "./PerkPointLabel";
+ 
++import ModPerkInfo from "./ModPerkInfo";
++
+ export default {
+   name: "PerksTab",
+   components: {
+-    PerkPointLabel
++    PerkPointLabel,
++    ModPerkInfo
+   },
+   computed: {
+     showHintText() {
+@@ -141,6 +144,9 @@ export const PerkNetwork = {
+   pulseTimer: 0,
+   initialStabilization: false,
+   currentLayout: {},
++  // [AD Mod] 퍽 정보 칸에 보여줄 퍽. 터치 화면에서는 첫 탭은 고르기만 하고, 같은 퍽을 다시 탭하면 산다.
++  selectedPerkId: undefined,
++  isTouchMode: window.matchMedia?.("(pointer: coarse)").matches ?? false,
+   initializeIfNeeded() {
+     const notation = Notations.current.name;
+     if (this.container !== undefined && notation === this.lastPerkNotation) return;
+@@ -150,12 +156,25 @@ export const PerkNetwork = {
+ 
+     this.network.on("click", params => {
+       const id = params.nodes[0];
++      // [AD Mod] 입력 종류(터치/마우스)를 기억해 두고, 터치면 첫 탭은 설명만 보여준다
++      const pointerType = params.event?.pointerType ?? params.event?.srcEvent?.pointerType;
++      if (pointerType !== undefined) this.isTouchMode = pointerType === "touch";
+       if (!isFinite(id)) return;
++      if (this.isTouchMode && this.selectedPerkId !== id) {
++        this.selectedPerkId = id;
++        return;
++      }
++      this.selectedPerkId = id;
+       Perks.find(id).purchase();
+       this.updatePerkColor();
+       this.updatePerkSize();
+     });
+ 
++    // [AD Mod] 마우스를 올린 퍽을 퍽 정보 칸에 보여준다
++    this.network.on("hoverNode", params => {
++      if (!this.isTouchMode) this.selectedPerkId = params.node;
++    });
++
+     this.network.on("dragStart", () => {
+       const tooltip = this.container.getElementsByClassName("vis-tooltip")[0];
+       if (tooltip !== undefined) {
+@@ -200,10 +219,15 @@ export const PerkNetwork = {
+     // Just for a bit of fun, tangle it up a bit unless the player specifically chooses not to
+     const isDisabled = perk => Pelle.isDoomed && Pelle.uselessPerks.includes(perk.id);
+     const selectPos = config => PerkLayouts[player.options.perkLayout].position(config);
++    // [AD Mod] 모드 퍽은 별 모양
++    const nodeShape = perk => {
++      if (perk.isModPerk) return "star";
++      return perk.config.automatorPoints ? "diamond" : "dot";
++    };
+     this.nodes = new DataSet(Perks.all.map(perk => ({
+       id: perk.id,
+       label: perk.config.label,
+-      shape: perk.config.automatorPoints ? "diamond" : "dot",
++      shape: nodeShape(perk),
+       // As far as I am aware, vis.js doesn't support arbitrary CSS styling; nevertheless, we still want the original
+       // description to be visible instead of being hidden by disable/lock text
+       title: (isDisabled(perk)
+@@ -404,6 +428,7 @@ export const PerkNetwork = {
+     class="c-perk-tab"
+   >
+     <PerkPointLabel />
++    <ModPerkInfo />
+   </div>
+ </template>
+ 
 diff --git a/src/components/tabs/secret-achievements/SecretAchievement.vue b/src/components/tabs/secret-achievements/SecretAchievement.vue
 index 0347691..8ef2461 100644
 --- a/src/components/tabs/secret-achievements/SecretAchievement.vue
@@ -385,11 +465,26 @@ index cee79a4..f3cd1e4 100644
    }
  
    /**
+diff --git a/src/core/celestials/pelle/pelle.js b/src/core/celestials/pelle/pelle.js
+index 36e4d22..ee141b3 100644
+--- a/src/core/celestials/pelle/pelle.js
++++ b/src/core/celestials/pelle/pelle.js
+@@ -200,7 +200,9 @@ export const Pelle = {
+ 
+   get uselessPerks() {
+     return [10, 12, 13, 14, 15, 16, 17, 30, 40, 41, 42, 43, 44, 45, 46, 51, 52,
+-      53, 60, 61, 62, 80, 81, 82, 83, 100, 103, 104, 105, 106, 201, 202, 203, 204];
++      53, 60, 61, 62, 80, 81, 82, 83, 100, 103, 104, 105, 106, 201, 202, 203, 204,
++      // [AD Mod] 위 퍽들을 이어받는 모드 퍽
++      ...ModPerks.pelleUselessIds];
+   },
+ 
+   get specialGlyphEffect() {
 diff --git a/src/core/currency.js b/src/core/currency.js
-index cb16d1c..3114b05 100644
+index cb16d1c..3d04440 100644
 --- a/src/core/currency.js
 +++ b/src/core/currency.js
-@@ -233,6 +233,7 @@ Currency.antimatter = new class extends DecimalCurrency {
+@@ -233,15 +233,18 @@ Currency.antimatter = new class extends DecimalCurrency {
  
    get startingValue() {
      if (Pelle.isDisabled()) return new Decimal(100);
@@ -397,7 +492,10 @@ index cb16d1c..3114b05 100644
      return Effects.max(
        10,
        Perk.startAM,
-@@ -241,7 +242,7 @@ Currency.antimatter = new class extends DecimalCurrency {
++      // [AD Mod] 시작 반물질 2단계 모드 퍽
++      Perk.modStartAM,
+       Achievement(21),
+       Achievement(37),
        Achievement(54),
        Achievement(55),
        Achievement(78)
@@ -406,7 +504,7 @@ index cb16d1c..3114b05 100644
    }
  }();
  
-@@ -282,12 +283,13 @@ Currency.infinityPoints = new class extends DecimalCurrency {
+@@ -282,12 +285,15 @@ Currency.infinityPoints = new class extends DecimalCurrency {
  
    get startingValue() {
      if (Pelle.isDisabled()) return new Decimal(0);
@@ -415,17 +513,41 @@ index cb16d1c..3114b05 100644
        0,
        Perk.startIP1,
        Perk.startIP2,
++      // [AD Mod] 시작 IP 3단계 모드 퍽
++      Perk.modStartIP,
        Achievement(104)
 -    ).toDecimal();
 +    ).toDecimal().max(ModRewards.max("startingIP"));
    }
  
    reset() {
+@@ -336,7 +342,9 @@ Currency.eternityPoints = new class extends DecimalCurrency {
+       0,
+       Perk.startEP1,
+       Perk.startEP2,
+-      Perk.startEP3
++      Perk.startEP3,
++      // [AD Mod] 시작 EP 4단계 모드 퍽
++      Perk.modStartEP
+     ).toDecimal();
+   }
+ 
 diff --git a/src/core/dilation.js b/src/core/dilation.js
-index 9e5228f..bc2d58d 100644
+index 9e5228f..fbac0c6 100644
 --- a/src/core/dilation.js
 +++ b/src/core/dilation.js
-@@ -135,6 +135,8 @@ export function getDilationGainPerSecond() {
+@@ -93,7 +93,9 @@ export function buyDilationUpgrade(id, bulk = 1) {
+         Perk.retroactiveTP1,
+         Perk.retroactiveTP2,
+         Perk.retroactiveTP3,
+-        Perk.retroactiveTP4
++        Perk.retroactiveTP4,
++        // [AD Mod] TP 소급 배율 5단계 모드 퍽
++        Perk.modRetroactiveTP
+       );
+       if (Enslaved.isRunning) {
+         retroactiveTPFactor = Math.pow(retroactiveTPFactor, Enslaved.tachyonNerf);
+@@ -135,6 +137,8 @@ export function getDilationGainPerSecond() {
      );
    dtRate = dtRate.times(getAdjustedGlyphEffect("dilationDT"));
    dtRate = dtRate.times(ShopPurchase.dilatedTimePurchases.currentMult);
@@ -434,7 +556,7 @@ index 9e5228f..bc2d58d 100644
    dtRate = dtRate.times(
      Math.clampMin(Decimal.log10(Replicanti.amount) * getAdjustedGlyphEffect("replicationdtgain"), 1));
    if (Enslaved.isRunning && !dtRate.eq(0)) dtRate = Decimal.pow10(Math.pow(dtRate.plus(1).log10(), 0.85) - 1);
-@@ -145,6 +147,7 @@ export function getDilationGainPerSecond() {
+@@ -145,6 +149,7 @@ export function getDilationGainPerSecond() {
  export function tachyonGainMultiplier() {
    if (Pelle.isDisabled("tpMults")) return new Decimal(1);
    const pow = Enslaved.isRunning ? Enslaved.tachyonNerf : 1;
@@ -442,7 +564,7 @@ index 9e5228f..bc2d58d 100644
    return DC.D1.timesEffectsOf(
      DilationUpgrade.tachyonGain,
      GlyphSacrifice.dilation,
-@@ -152,7 +155,7 @@ export function tachyonGainMultiplier() {
+@@ -152,7 +157,7 @@ export function tachyonGainMultiplier() {
      RealityUpgrade(4),
      RealityUpgrade(8),
      RealityUpgrade(15)
@@ -451,7 +573,7 @@ index 9e5228f..bc2d58d 100644
  }
  
  export function rewardTP() {
-@@ -215,7 +218,9 @@ export function getDilationTimeEstimate(goal) {
+@@ -215,7 +220,9 @@ export function getDilationTimeEstimate(goal) {
  
  export function dilatedValueOf(value) {
    const log10 = value.log10();
@@ -563,6 +685,22 @@ index d5b97df..fde2bf7 100644
    return mult;
  }
  
+diff --git a/src/core/eternity-challenge.js b/src/core/eternity-challenge.js
+index d56f0f6..22b5fa9 100644
+--- a/src/core/eternity-challenge.js
++++ b/src/core/eternity-challenge.js
+@@ -366,7 +366,10 @@ export const EternityChallenges = {
+         Number.MAX_VALUE,
+         Perk.autocompleteEC1,
+         Perk.autocompleteEC2,
+-        Perk.autocompleteEC3
++        Perk.autocompleteEC3,
++        // [AD Mod] EC 자동 완료 4~5단계 모드 퍽
++        Perk.modAutoEC4,
++        Perk.modAutoEC5
+       );
+       minutes /= VUnlocks.fastAutoEC.effectOrDefault(1);
+       return TimeSpan.fromMinutes(minutes).totalMilliseconds;
 diff --git a/src/core/eternity.js b/src/core/eternity.js
 index 60d2c35..d2bfff2 100644
 --- a/src/core/eternity.js
@@ -606,10 +744,10 @@ index 3a7d5a8..50d18f4 100644
  
    static get type() {
 diff --git a/src/core/globals.js b/src/core/globals.js
-index 014784d..e5a2fcd 100644
+index 014784d..60030da 100644
 --- a/src/core/globals.js
 +++ b/src/core/globals.js
-@@ -88,5 +88,9 @@ export * from "./shop";
+@@ -88,5 +88,10 @@ export * from "./shop";
  export * from "./tabs";
  export * from "./tab-notifications";
  export * from "./speedrun";
@@ -617,6 +755,7 @@ index 014784d..e5a2fcd 100644
 +export * from "./mod-rewards";
 +export * from "./mod-upgrades";
 +export * from "./mod-time-studies";
++export * from "./mod-perks";
  
  export * from "./automator/script-templates";
 diff --git a/src/core/glyphs/auto-glyph-processor.js b/src/core/glyphs/auto-glyph-processor.js
@@ -663,6 +802,33 @@ index 056e45f..808c0ad 100644
    },
  
    get uncappedRM() {
+diff --git a/src/core/perks.js b/src/core/perks.js
+index d1e5ac4..8beea19 100644
+--- a/src/core/perks.js
++++ b/src/core/perks.js
+@@ -33,12 +33,21 @@ class PerkState extends SetPurchasableMechanicState {
+     return 1;
+   }
+ 
++  // [AD Mod] 모드 퍽인지 (secret-formula/reality/mod-perks.js)
++  get isModPerk() {
++    return this.config.modPerk === true;
++  }
++
+   get isAvailableForPurchase() {
++    // [AD Mod] 모드 퍽이 꺼져 있거나 스피드런 중이면 모드 퍽은 살 수 없다
++    if (this.isModPerk && !ModPerks.isEnabled) return false;
+     return this.id === 0 || this.connectedPerks.some(p => p.isBought);
+   }
+ 
+   get canBeApplied() {
+-    return this.isBought && !(Pelle.isDoomed && Pelle.uselessPerks.includes(this.id));
++    // [AD Mod] 모드 퍽은 켜져 있을 때만 효과가 있다
++    return this.isBought && !(Pelle.isDoomed && Pelle.uselessPerks.includes(this.id)) &&
++      (!this.isModPerk || ModPerks.isEnabled);
+   }
+ 
+   initializeConnections() {
 diff --git a/src/core/player.js b/src/core/player.js
 index eac84b0..8b21e2e 100644
 --- a/src/core/player.js
@@ -719,10 +885,20 @@ index bbacd58..a0d8731 100644
  
    static get nextBoost() {
 diff --git a/src/core/secret-formula/achievements/normal-achievements.js b/src/core/secret-formula/achievements/normal-achievements.js
-index 6e7b033..c569420 100644
+index 6e7b033..8c147c9 100644
 --- a/src/core/secret-formula/achievements/normal-achievements.js
 +++ b/src/core/secret-formula/achievements/normal-achievements.js
-@@ -1187,7 +1187,8 @@ export const normalAchievements = [
+@@ -1081,7 +1081,8 @@ export const normalAchievements = [
+     id: 146,
+     name: "Perks of living",
+     description: "Have all Perks bought.",
+-    checkRequirement: () => player.reality.perks.size === Perks.all.length,
++    // [AD Mod] 원래 퍽만 센다 (모드 퍽은 필요 없음)
++    checkRequirement: () => Perks.all.every(perk => perk.isModPerk || perk.isBought),
+     checkEvent: GAME_EVENT.PERK_BOUGHT,
+     get reward() { return `+${formatPercents(0.01)} Glyph rarity.`; },
+     effect: 1
+@@ -1187,7 +1188,8 @@ export const normalAchievements = [
      id: 162,
      name: "Reinstalled the game and rejoined the server",
      description: "Have every Time Study at once.",
@@ -774,6 +950,38 @@ index 2662fb0..3277100 100644
 +  // [AD Mod] 한국어 뉴스
 +  ...modNews
  ];
+diff --git a/src/core/secret-formula/reality/perks.js b/src/core/secret-formula/reality/perks.js
+index b4a340a..ac96659 100644
+--- a/src/core/secret-formula/reality/perks.js
++++ b/src/core/secret-formula/reality/perks.js
+@@ -1,5 +1,7 @@
+ import { DC } from "../../constants";
+ 
++import { modPerkConfigs, placeModPerks } from "./mod-perks";
++
+ export const PERK_FAMILY = {
+   ANTIMATTER: "ANTIMATTER",
+   INFINITY: "INFINITY",
+@@ -522,6 +524,10 @@ export const perks = {
+   }
+ };
+ 
++// [AD Mod] 원래 퍽 트리의 끝에서 이어지는 모드 퍽 (secret-formula/reality/mod-perks.js)
++placeModPerks(perks, modPerkConfigs);
++Object.assign(perks, modPerkConfigs);
++
+ export const perkConnections = (function() {
+   const p = perks;
+   // First item is the start, other items are the ends
+@@ -563,6 +569,8 @@ export const perkConnections = (function() {
+     [p.achievementGroup2, p.achievementGroup3],
+     [p.achievementGroup3, p.achievementGroup4],
+     [p.achievementGroup4, p.achievementGroup5],
++    // [AD Mod] 모드 퍽은 각자 이어지는 퍽과 연결된다
++    ...Object.values(modPerkConfigs).map(config => [config, ...config.from.map(key => p[key])]),
+   ];
+   const connections = {};
+   for (const perk of Object.values(perks)) {
 diff --git a/src/core/secret-formula/tabs.js b/src/core/secret-formula/tabs.js
 index 376688d..c05580b 100644
 --- a/src/core/secret-formula/tabs.js
@@ -874,6 +1082,20 @@ index d3ae997..76735d0 100644
    },
  
    get totalUpgrades() {
+diff --git a/src/core/time-studies/dilation-time-study.js b/src/core/time-studies/dilation-time-study.js
+index c0c05be..5a46283 100644
+--- a/src/core/time-studies/dilation-time-study.js
++++ b/src/core/time-studies/dilation-time-study.js
+@@ -39,7 +39,8 @@ export class DilationTimeStudyState extends TimeStudyState {
+       if (Perk.autounlockDilation2.canBeApplied) {
+         for (const id of [7, 8, 9]) player.dilation.upgrades.add(id);
+       }
+-      if (!Pelle.isDoomed) Currency.tachyonParticles.bumpTo(Perk.startTP.effectOrDefault(0));
++      // [AD Mod] 시작 TP 2단계 모드 퍽도 함께 본다
++      if (!Pelle.isDoomed) Currency.tachyonParticles.bumpTo(Effects.max(0, Perk.startTP, Perk.modStartTP));
+       if (Ra.unlocks.unlockDilationStartingTP.canBeApplied && !isInCelestialReality() && !Pelle.isDoomed) {
+         Currency.tachyonParticles.bumpTo(getTP(Ra.unlocks.unlockDilationStartingTP.effectOrDefault(0), false));
+       }
 diff --git a/src/core/time-studies/normal-time-study.js b/src/core/time-studies/normal-time-study.js
 index 5021a22..d12ea36 100644
 --- a/src/core/time-studies/normal-time-study.js

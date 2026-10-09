@@ -15,6 +15,7 @@
 | 업적/챌린지 보너스 보상 | 아래 [보너스 보상](#보너스-보상) 참고. 끄면 원래 게임 밸런스로 돌아갑니다. |
 | 모드 업그레이드 효과 | 아래 [모드 업그레이드](#모드-업그레이드) 참고. 꺼도 해금 기록은 남습니다. |
 | 모드 시간 연구 | 아래 [모드 시간 연구](#모드-시간-연구) 참고. 끄면 트리에서 숨고 살 수 없습니다. |
+| 모드 퍽 | 아래 [모드 퍽](#모드-퍽) 참고. 끄면 효과가 멈추고 살 수 없습니다 (이미 산 퍽은 남음). |
 | 설정 초기화 | 모드 설정을 기본값으로 되돌립니다. |
 
 - 모드 설정은 세이브 파일이 아니라 브라우저 `localStorage`(`ADModSettings` 키)에 따로 저장합니다.
@@ -102,6 +103,33 @@
 - 업적 162 "모든 시간 연구"는 원래 연구 58개만 셉니다.
 - 데이터 위치: `overlay/src/core/secret-formula/eternity/time-studies/mod-time-studies.js`
 
+## 모드 퍽
+
+현실(Reality)의 **퍽 트리 가지 끝**에서 이어지는 퍽 36개를 추가했습니다 (원래 48개 → 84개).
+원래 퍽처럼 퍽 포인트 1개로 사고, 현실의 퍽 리스펙으로 돌려받습니다. 퍽 화면에서 **별 모양**이 모드 퍽입니다.
+
+| 이어지는 퍽 | 모드 퍽 | 효과 |
+| --- | --- | --- |
+| SAM / SIP2 / SEP3 / STP | SAM2 / SIP3 / SEP4 / STP2 | 시작 반물질 1e200, 시작 IP 1e300, 시작 EP 1e100, 팽창 해금 시 TP 1e6 |
+| PEC3 | PEC4 → PEC5 | 영원 챌린지 자동 완료 10분 → 4분마다 |
+| TP4 | TP5 | 3번째 반복 팽창 업그레이드 TP 소급 배율 ×4 |
+| ANR (반물질) | AD+ → GAL+ → DB+ → GSD | 반물질 차원 ×1e100, 갤럭시 효과 +10%, 부스트 배율 ×2, 먼 갤럭시 200개 지연 |
+| IDR (무한) | ID+ → IP+ → IPC → PIP | 무한 차원 ×1e50, IP ×1e20, 무한 파워 변환 지수 +1, IP 자동 획득 1%/초 |
+| SEP4 / ECB / TTM (영원) | EP+ → PEP → ETM, TD+, TTG | EP ×1e10, EP 자동 획득 1%/초, 영원 횟수 ×(현실 횟수+1), 시간 차원 ×1e30, EP 비례 TT 생성 |
+| REPAS (복제자) | REP+ → RGM → RGP | 레플리칸티 속도 ×10, 레플리칸티 갤럭시 최대치 +50, 효과 +15% |
+| DAB / ATD (시간 팽창) | DT+ → TPM → DILX, TG+ | 팽창 시간 ×5, 타키온 입자 ×3, 팽창 지수 +0.03, 타키온 은하 +20 |
+| REAL (현실) | RM+ → GL+ → BH+ → RM2 → GL2 | 현실 기계 ×2, 글리프 레벨 +100, 블랙홀 위력 +25%, 현실 횟수 비례 RM·글리프 레벨 |
+| ACHNR (업적) | ACA → ACT → ACR → ACG | 달성한 업적 수에 비례해 반물질 차원, 시간 차원, 현실 기계, 글리프 레벨 증가 |
+
+- 퍽 탭 위의 **퍽 정보 칸**에 고른 퍽의 설명과 상태(구매 가능, 연결된 퍽 필요 등)가 나옵니다.
+  휴대폰처럼 터치하는 화면에서는 **첫 탭은 설명만 보여주고, 같은 퍽을 한 번 더 탭하면 삽니다** (잘못 눌러 사는 것을 막음).
+  마우스로는 원래처럼 올리면 설명, 클릭하면 구매입니다.
+- 기본 배치는 이어지는 퍽 옆의 빈자리를 자동으로 찾아 놓습니다. 모든 배치(Default, Android, Square 등)에서 겹치지 않습니다.
+- 시작 자원, EC 자동 완료, TP 소급 퍽은 원래 퍽처럼 Pelle의 파멸된 현실에서는 효과가 없습니다.
+- 업적 146 "모든 퍽 구매"는 원래 퍽 48개만 셉니다. 모드 퍽은 오토메이터 포인트를 주지 않습니다.
+- 모드를 지운 원본 게임에 세이브를 불러오면 원본 게임이 알 수 없는 퍽을 발견하고 퍽을 리셋해 포인트를 돌려줍니다.
+- 데이터 위치: `overlay/src/core/secret-formula/reality/mod-perks.js`
+
 ## 휴대폰으로 플레이하기
 
 푸시할 때마다 GitHub Actions(`.github/workflows/build-game.yml`)가 모드를 적용해 게임을 빌드합니다.
@@ -157,7 +185,10 @@ overlay/               원본에 새로 추가하는 파일
   src/core/mod-upgrades.js                           모드 업그레이드 해금 처리 (ModUpgrades 전역 객체)
   src/core/secret-formula/mod-upgrades.js            모드 업그레이드 30개 데이터
   src/core/mod-time-studies.js                       모드 시간 연구 배치/연결선/연속 구매 (ModTimeStudies 전역 객체)
-  src/core/secret-formula/eternity/time-studies/mod-time-studies.js  모드 시간 연구 40개 데이터
+  src/core/secret-formula/eternity/time-studies/mod-time-studies.js  모드 시간 연구 53개 데이터
+  src/core/mod-perks.js                              모드 퍽 상태 (ModPerks 전역 객체)
+  src/core/secret-formula/reality/mod-perks.js       모드 퍽 36개 데이터와 자동 배치
+  src/components/tabs/perks/ModPerkInfo.vue          퍽 탭의 퍽 정보 칸 (터치 두 번 탭 구매)
   src/core/secret-formula/mod-news.js                한국어 뉴스
   src/components/ModBonusLine.vue                    툴팁/챌린지 상자의 "모드 보너스" 줄
   src/components/tabs/mod-rewards/ModRewardsTab.vue  Achievements → Mod Bonuses 탭 화면
@@ -178,20 +209,23 @@ scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모
 | `src/core/dimensions/antimatter-dimension.js` | 생산 배율, 모든/특정 차원 보너스, 10개 구매 배율 보너스 |
 | `src/core/tickspeed.js` | 틱스피드, 갤럭시 효과 보너스, 레플리칸티 갤럭시 효과, 추가 타키온 은하 |
 | `src/core/dimboost.js`, `src/core/galaxy.js` | 차원 부스트 배율, 부스트/갤럭시 요구량 보너스, 먼 갤럭시 비용 증가 지연 |
-| `src/core/currency.js`, `src/core/sacrifice.js` | 시작 반물질, 영원 시작 IP, 차원 희생 보너스 |
+| `src/core/currency.js`, `src/core/sacrifice.js` | 시작 반물질/IP/EP (모드 퍽 포함), 영원 시작 IP, 차원 희생 보너스 |
 | `src/core/player.js` | 세이브에 모드 업그레이드 해금 상태(`adMod.upgradeBits`)와 업적 자동 해금 타이머(`adMod.achTimer`) 추가 |
 | `src/core/infinity-upgrades.js`, `src/core/replicanti.js` | IP, 레플리칸티 속도 보너스, 레플리칸티 갤럭시 최대치 |
 | `src/core/dimensions/infinity-dimension.js`, `src/core/dimensions/time-dimension.js` | 무한/시간 차원 보너스, 무한 차원별 배율, 무한 파워 변환 지수 |
-| `src/core/secret-formula/eternity/time-studies/normal-time-studies.js` | 시간 연구 데이터베이스에 모드 연구 40개 추가 |
+| `src/core/secret-formula/eternity/time-studies/normal-time-studies.js` | 시간 연구 데이터베이스에 모드 연구 53개 추가 |
 | `src/core/time-studies/normal-time-study.js` | 모드 연구 Shift+클릭 연속 구매 |
 | 시간 연구 탭 컴포넌트 3개 (`time-study-tree-layout.js`, `TimeStudiesTab.vue`, `TimeStudyButton.vue`) | 트리 아래 모드 연구 구역, 연결선, 갈래 색 |
-| `src/core/secret-formula/achievements/normal-achievements.js` | 업적 162가 원래 연구만 세도록 |
-| `src/core/eternity.js`, `src/core/dilation.js` | 영원 횟수, 타키온 입자, 팽창 시간 보너스, 팽창 지수 완화 |
+| `src/core/secret-formula/achievements/normal-achievements.js` | 업적 162가 원래 연구만, 업적 146이 원래 퍽만 세도록 |
+| `src/core/secret-formula/reality/perks.js`, `src/core/perks.js` | 퍽 데이터베이스에 모드 퍽 36개와 연결 추가, 모드 퍽 켜기/끄기 |
+| `src/components/tabs/perks/PerksTab.vue` | 모드 퍽 별 모양, 퍽 정보 칸, 터치 첫 탭은 설명만 |
+| `src/core/eternity-challenge.js`, `src/core/time-studies/dilation-time-study.js`, `src/core/celestials/pelle/pelle.js` | EC 자동 완료 4~5단계, 시작 TP 2단계, Pelle에서 쓸모없는 모드 퍽 |
+| `src/core/eternity.js`, `src/core/dilation.js` | 영원 횟수, 타키온 입자, 팽창 시간 보너스, 팽창 지수 완화, TP 소급 5단계 |
 | `src/core/machines.js`, `src/core/glyphs/auto-glyph-processor.js`, `src/core/black-hole.js` | 현실 기계, 글리프 레벨, 블랙홀 보너스 |
 | 업적/챌린지 화면 컴포넌트 5개 | 툴팁과 챌린지 상자에 "모드 보너스" 줄 추가 |
 | `src/core/secret-formula/news.js` | 한국어 뉴스 목록 추가 |
 | `src/core/secret-formula/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses / Mod Upgrades 탭 추가 |
-| `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`, `ModTimeStudies`를 전역으로 노출 |
+| `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`, `ModTimeStudies`, `ModPerks`를 전역으로 노출 |
 | `public/index.html` | 모바일 화면 맞춤(viewport), 홈 화면 앱 설정 |
 
 ## 모드 고치기

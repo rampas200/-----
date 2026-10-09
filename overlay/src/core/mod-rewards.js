@@ -2,13 +2,15 @@
 // 여러 모드 기능의 효과를 한곳에서 모아 게임 계산식에 넘긴다.
 //  - 보너스 보상: 모든 업적/비밀 업적/챌린지에 붙는 추가 보상 (secret-formula/mod-rewards.js)
 //  - 모드 업그레이드: 조건을 달성하면 해금되는 일회성 업그레이드 (secret-formula/mod-upgrades.js)
-//  - 모드 시간 연구: 시간 연구 트리 아래의 4갈래 연구 (secret-formula/eternity/time-studies/mod-time-studies.js)
+//  - 모드 시간 연구: 시간 연구 트리 아래의 5갈래 연구 (secret-formula/eternity/time-studies/mod-time-studies.js)
+//  - 모드 퍽: 현실 퍽 트리 끝에서 이어지는 퍽 (secret-formula/reality/mod-perks.js)
 // 여기서는
 //  1) 각 효과가 지금 켜져 있는지(업적 달성, 업그레이드 해금 등) 판단하고
 //  2) 같은 채널(예: 틱스피드)에 걸린 효과들을 곱하거나 더해서
 //  3) 패치된 게임 계산식이 ModRewards.decimal / number / sum / max 로 가져다 쓰게 한다.
 
 import { DC } from "./constants";
+import { modPerkConfigs } from "./secret-formula/reality/mod-perks";
 import { modRewards } from "./secret-formula/mod-rewards";
 import { modTimeStudies } from "./secret-formula/eternity/time-studies/mod-time-studies";
 import { modUpgrades } from "./secret-formula/mod-upgrades";
@@ -102,6 +104,12 @@ export const MOD_REWARD_SOURCES = {
     isActive: id => TimeStudy(id).isBought,
     title: id => `연구 ${id}`,
   },
+  perk: {
+    label: "모드 퍽",
+    isEnabled: () => ADMod.modPerks,
+    isActive: id => Perks.find(id).canBeApplied,
+    title: id => `퍽 ${Perks.find(id).label}`,
+  },
 };
 
 // 데이터를 { source, id, note, parts } 목록으로 펼치고, 채널별로 묶어 둔다
@@ -124,8 +132,13 @@ for (const [source, rewards] of Object.entries(modRewards)) {
 const upgradeRewardList = modUpgrades.map(upgrade => register("upgrade", upgrade.id, upgrade));
 // 모드 시간 연구의 효과 (연구 버튼에 표시된다)
 const studyRewardList = modTimeStudies.map(study => register("study", study.id, study));
+// 모드 퍽의 효과 (이어받기 퍽은 원래 계산식에 들어가므로 여기에는 효과 퍽만 있다)
+const perkRewardList = Object.values(modPerkConfigs)
+  .filter(config => config.parts !== undefined)
+  .map(config => register("perk", config.id, config));
 
-const rewardIndex = new Map([...rewardList, ...upgradeRewardList, ...studyRewardList].map(r => [r.key, r]));
+const rewardIndex = new Map([...rewardList, ...upgradeRewardList, ...studyRewardList, ...perkRewardList]
+  .map(r => [r.key, r]));
 
 function neutralValue(kind) {
   if (kind === "decimal") return DC.D1;
@@ -265,6 +278,7 @@ export const ModRewards = {
   list: rewardList,
   upgradeList: upgradeRewardList,
   studyList: studyRewardList,
+  perkList: perkRewardList,
 
   // 보너스 보상(업적/챌린지)이 켜져 있는지. 모드 업그레이드는 ADMod.modUpgrades로 따로 켜고 끈다.
   get isEnabled() {
