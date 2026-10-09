@@ -219,7 +219,7 @@ index 0347691..8ef2461 100644
      </div>
      <div
 diff --git a/src/components/tabs/time-studies/TimeStudiesTab.vue b/src/components/tabs/time-studies/TimeStudiesTab.vue
-index bc76e26..fcedd44 100644
+index bc76e26..82597bd 100644
 --- a/src/components/tabs/time-studies/TimeStudiesTab.vue
 +++ b/src/components/tabs/time-studies/TimeStudiesTab.vue
 @@ -33,6 +33,7 @@ export default {
@@ -252,20 +252,21 @@ index bc76e26..fcedd44 100644
      },
      studyComponent(study) {
        switch (study.type) {
-@@ -166,6 +175,23 @@ export default {
+@@ -166,6 +175,24 @@ export default {
          :key="setup.study.type.toString() + setup.study.id.toString()"
          :setup="setup"
        />
 +      <div
-+        v-if="layout.modTitle"
++        v-for="title in layout.modTitles"
++        :key="title.text"
 +        class="c-ad-mod-study-title"
-+        :style="{ top: `${layout.modTitle.top}rem`, height: `${layout.modTitle.height}rem` }"
++        :style="{ top: `${title.top}rem`, height: `${title.height}rem` }"
 +      >
 +        <div class="c-ad-mod-study-title__text">
-+          모드 시간 연구
++          {{ title.text }}
 +        </div>
 +        <div
-+          v-for="label in layout.modTitle.labels"
++          v-for="label in title.labels"
 +          :key="label.name"
 +          class="c-ad-mod-study-title__branch"
 +          :style="{ left: `${label.left}rem`, width: `${label.width}rem` }"
@@ -276,7 +277,7 @@ index bc76e26..fcedd44 100644
        <SecretTimeStudy :setup="layout.secretStudy" />
        <EnslavedTimeStudy
          v-if="isEnslaved"
-@@ -192,5 +218,24 @@ export default {
+@@ -192,5 +219,24 @@ export default {
  </template>
  
  <style scoped>
@@ -316,26 +317,31 @@ index da7a01e..44a2d60 100644
          case TIME_STUDY_TYPE.ETERNITY_CHALLENGE:
            return "o-time-study-eternity-challenge";
 diff --git a/src/components/tabs/time-studies/time-study-tree-layout.js b/src/components/tabs/time-studies/time-study-tree-layout.js
-index 079ecf4..e6891ba 100644
+index 079ecf4..846d1d9 100644
 --- a/src/components/tabs/time-studies/time-study-tree-layout.js
 +++ b/src/components/tabs/time-studies/time-study-tree-layout.js
-@@ -124,6 +124,15 @@ export class TimeStudyTreeLayout {
+@@ -124,6 +124,20 @@ export class TimeStudyTreeLayout {
        normalRow(          TimeStudy.timeDimension(7), TimeStudy.timeDimension(8)      ),
        normalRow(                          TimeStudy.reality                           )
      );
 +
-+    // [AD Mod] 모드 시간 연구: 빈 줄(제목 자리) 다음에 갈래별 열로 10줄
++    // [AD Mod] 모드 시간 연구: 빈 줄(제목 자리) 다음에 갈래별 열로 10줄, 그 아래 업적 자동 해금 줄
++    this.modTitleRows = [];
 +    if (ModTimeStudies.isEnabled) {
-+      this.modTitleRow = this.rows.length;
-+      this.rows.push(normalRow(null, null, null, null));
++      const branchNames = ModTimeStudies.branches.map(branch => branch.name);
++      this.modTitleRows.push({ row: this.rows.length, text: "모드 시간 연구", labels: branchNames });
++      this.rows.push(normalRow(...branchNames.map(() => null)));
 +      for (let depth = 0; depth < ModTimeStudies.depth; depth++) {
 +        this.rows.push(normalRow(...ModTimeStudies.rowIds(depth).map(id => TS(id))));
 +      }
++      this.modTitleRows.push({ row: this.rows.length, text: "업적 자동 해금", labels: [] });
++      this.rows.push(normalRow(null));
++      this.rows.push(normalRow(...ModTimeStudies.achievementStudyIds.map(id => TS(id))));
 +    }
      /* eslint-enable no-multi-spaces, space-in-parens, func-call-spacing */
  
      /**
-@@ -164,6 +173,7 @@ export class TimeStudyTreeLayout {
+@@ -164,6 +178,7 @@ export class TimeStudyTreeLayout {
       * @type {TimeStudyConnectionSetup[]}
       */
      this.connections = TimeStudy.allConnections
@@ -343,24 +349,25 @@ index 079ecf4..e6891ba 100644
        .map(c => new TimeStudyConnectionSetup(c));
      this.secretStudyConnection = new TimeStudyConnectionSetup(
        new TimeStudyConnection(TS(11), secretStudy)
-@@ -179,6 +189,20 @@ export class TimeStudyTreeLayout {
+@@ -179,6 +194,21 @@ export class TimeStudyTreeLayout {
      for (const study of this.studies) {
        study.setPosition(this);
      }
 +
-+    // [AD Mod] 모드 연구 제목과 갈래 이름 위치
-+    if (this.modTitleRow !== undefined) {
-+      const titleRow = this.rows[this.modTitleRow];
-+      this.modTitle = {
-+        top: this.itemPosition(this.modTitleRow),
++    // [AD Mod] 모드 연구 구역 제목과 갈래 이름 위치
++    this.modTitles = this.modTitleRows.map(title => {
++      const titleRow = this.rows[title.row];
++      return {
++        text: title.text,
++        top: this.itemPosition(title.row),
 +        height: titleRow.layout.itemHeight,
-+        labels: ModTimeStudies.branches.map((branch, column) => ({
-+          name: branch.name,
++        labels: title.labels.map((name, column) => ({
++          name,
 +          left: titleRow.itemPosition(column, this),
 +          width: titleRow.layout.itemWidth,
 +        })),
 +      };
-+    }
++    });
      this.secretStudy.setPosition(this);
      this.enslavedStudy.setPosition(this);
  
@@ -415,7 +422,7 @@ index cb16d1c..3114b05 100644
  
    reset() {
 diff --git a/src/core/dilation.js b/src/core/dilation.js
-index 9e5228f..1ed25db 100644
+index 9e5228f..bc2d58d 100644
 --- a/src/core/dilation.js
 +++ b/src/core/dilation.js
 @@ -135,6 +135,8 @@ export function getDilationGainPerSecond() {
@@ -444,6 +451,17 @@ index 9e5228f..1ed25db 100644
  }
  
  export function rewardTP() {
+@@ -215,7 +218,9 @@ export function getDilationTimeEstimate(goal) {
+ 
+ export function dilatedValueOf(value) {
+   const log10 = value.log10();
+-  const dilationPenalty = 0.75 * Effects.product(DilationUpgrade.dilationPenalty);
++  // [AD Mod] 모드 시간 연구: 팽창 지수 완화
++  const dilationPenalty = (0.75 + ModRewards.sum("dilationExponent")) *
++    Effects.product(DilationUpgrade.dilationPenalty);
+   return Decimal.pow10(Math.sign(log10) * Math.pow(Math.abs(log10), dilationPenalty));
+ }
+ 
 diff --git a/src/core/dimboost.js b/src/core/dimboost.js
 index a39b587..cdb83aa 100644
 --- a/src/core/dimboost.js
@@ -646,16 +664,18 @@ index 056e45f..808c0ad 100644
  
    get uncappedRM() {
 diff --git a/src/core/player.js b/src/core/player.js
-index eac84b0..1fb1f05 100644
+index eac84b0..8b21e2e 100644
 --- a/src/core/player.js
 +++ b/src/core/player.js
-@@ -237,6 +237,10 @@ window.player = {
+@@ -237,6 +237,12 @@ window.player = {
      Eternity: true,
      Infinity: true
    },
 +  // [AD Mod] 모드 업그레이드 해금 상태 (비트마스크, 업그레이드 id = 비트 번호)
 +  adMod: {
 +    upgradeBits: 0,
++    // 모드 업적 자동 해금 연구의 타이머 (ms)
++    achTimer: 0,
 +  },
    requirementChecks: {
      infinity: {
@@ -800,7 +820,7 @@ index 376688d..c05580b 100644
      ]
    },
 diff --git a/src/core/tickspeed.js b/src/core/tickspeed.js
-index d3ae997..ffa5923 100644
+index d3ae997..76735d0 100644
 --- a/src/core/tickspeed.js
 +++ b/src/core/tickspeed.js
 @@ -3,10 +3,11 @@ import { DC } from "./constants";
@@ -816,7 +836,17 @@ index d3ae997..ffa5923 100644
    // "extra" galaxies unaffected by the passive/idle boosts come from studies 225/226 and Effarig Infinity
    replicantiGalaxies += Replicanti.galaxies.extra;
    const nonActivePathReplicantiGalaxies = Math.min(Replicanti.galaxies.bought,
-@@ -23,6 +24,7 @@ export function getTickSpeedMultiplier() {
+@@ -14,7 +15,8 @@ export function effectiveBaseGalaxies() {
+   // Effects.sum is intentional here - if EC8 is not completed,
+   // this value should not be contributed to total replicanti galaxies
+   replicantiGalaxies += nonActivePathReplicantiGalaxies * Effects.sum(EternityChallenge(8).reward);
+-  let freeGalaxies = player.dilation.totalTachyonGalaxies;
++  // [AD Mod] 모드 시간 연구: 추가 타키온 은하
++  let freeGalaxies = player.dilation.totalTachyonGalaxies + ModRewards.sum("extraTachyonGalaxies");
+   freeGalaxies *= 1 + Math.max(0, Replicanti.amount.log10() / 1e6) * AlchemyResource.alternation.effectValue;
+   return Math.max(player.galaxies + GalaxyGenerator.galaxies + replicantiGalaxies + freeGalaxies, 0);
+ }
+@@ -23,6 +25,7 @@ export function getTickSpeedMultiplier() {
    if (InfinityChallenge(3).isRunning) return DC.D1;
    if (Ra.isRunning) return DC.C1D1_1245;
    let galaxies = effectiveBaseGalaxies();
@@ -824,7 +854,7 @@ index d3ae997..ffa5923 100644
    const effects = Effects.product(
      InfinityUpgrade.galaxyBoost,
      InfinityUpgrade.galaxyBoost.chargedEffect,
-@@ -34,7 +36,7 @@ export function getTickSpeedMultiplier() {
+@@ -34,7 +37,7 @@ export function getTickSpeedMultiplier() {
      InfinityChallenge(5).reward,
      PelleUpgrade.galaxyPower,
      PelleRifts.decay.milestones[1]
@@ -833,7 +863,7 @@ index d3ae997..ffa5923 100644
    if (galaxies < 3) {
      // Magic numbers are to retain balancing from before while displaying
      // them now as positive multipliers rather than negative percentages
-@@ -172,7 +174,9 @@ export const Tickspeed = {
+@@ -172,7 +175,9 @@ export const Tickspeed = {
        Achievement(66),
        Achievement(83)
      )
@@ -861,7 +891,7 @@ index 5021a22..d12ea36 100644
    }
  
 diff --git a/src/game.js b/src/game.js
-index 41a77d0..bc5dec1 100644
+index 41a77d0..7a5d5b9 100644
 --- a/src/game.js
 +++ b/src/game.js
 @@ -132,7 +132,9 @@ function totalEPMult() {
@@ -910,7 +940,16 @@ index 41a77d0..bc5dec1 100644
      GameIntervals.gameLoop.stop();
      simulateTime(realDiff / 1000, true);
      realTimeMechanics(realDiff);
-@@ -681,6 +689,15 @@ function passivePrestigeGen() {
+@@ -616,6 +624,8 @@ export function gameLoop(passDiff, options = {}) {
+ 
+   laitelaRealityTick(realDiff);
+   Achievements.autoAchieveUpdate(diff);
++  // [AD Mod] 모드 시간 연구: 업적 자동 해금
++  ModTimeStudies.achievementTick(diff);
+   V.checkForUnlocks();
+   AutomatorBackend.update(realDiff);
+   Pelle.gameLoop(realDiff);
+@@ -681,6 +691,15 @@ function passivePrestigeGen() {
      player.reality.partEternitied = player.reality.partEternitied.sub(player.reality.partEternitied.floor());
    }
  
@@ -926,7 +965,7 @@ index 41a77d0..bc5dec1 100644
    if (!EternityChallenge(4).isRunning) {
      let infGen = DC.D0;
      if (BreakInfinityUpgrade.infinitiedGen.isBought) {
-@@ -696,6 +713,9 @@ function passivePrestigeGen() {
+@@ -696,6 +715,9 @@ function passivePrestigeGen() {
      if (RealityUpgrade(11).isBought) {
        infGen = infGen.plus(RealityUpgrade(11).effectValue.times(Time.deltaTime));
      }
@@ -936,7 +975,7 @@ index 41a77d0..bc5dec1 100644
      if (EffarigUnlock.eternity.isUnlocked) {
        // We consider half of the eternities we gained above this tick
        // to have been gained before the infinities, and thus not to
-@@ -825,6 +845,16 @@ function applyAutoprestige(diff) {
+@@ -825,6 +847,16 @@ function applyAutoprestige(diff) {
    if (PelleRifts.chaos.milestones[2].canBeApplied) {
      Currency.eternityPoints.add(gainedEternityPoints().times(DC.D0_1).times(diff / 1000));
    }
@@ -953,7 +992,7 @@ index 41a77d0..bc5dec1 100644
  }
  
  function updateImaginaryMachines(diff) {
-@@ -873,7 +903,8 @@ export function getTTPerSecond() {
+@@ -873,7 +905,8 @@ export function getTTPerSecond() {
      finalTT = finalTT.pow(SingularityMilestone.theoremPowerFromSingularities.effectOrDefault(1));
    }
  

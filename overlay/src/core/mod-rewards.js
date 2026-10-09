@@ -51,6 +51,8 @@ export const MOD_REWARD_CHANNELS = {
   idConversion: { kind: "sum", format: "plus", label: "무한 파워 변환 지수" },
   replicantiGalaxyMax: { kind: "sum", format: "plusInt", label: "레플리칸티 갤럭시 최대치" },
   replicantiGalaxyPower: { kind: "sum", format: "percentAdd", label: "레플리칸티 갤럭시 효과" },
+  dilationExponent: { kind: "sum", format: "plus", label: "팽창 지수" },
+  extraTachyonGalaxies: { kind: "sum", format: "plusInt", label: "타키온 은하" },
 };
 
 const bonusRewardsEnabled = () => ADMod.bonusRewards;

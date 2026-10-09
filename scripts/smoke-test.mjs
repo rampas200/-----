@@ -211,7 +211,7 @@ try {
     Currency.timeTheorems.bumpTo(new Decimal(1000));
     return { modStudies: GameDatabase.eternity.timeStudies.normal.filter(st => st.isModStudy).length };
   });
-  check("모드 시간 연구 40개 데이터", studyData.modStudies === 40, JSON.stringify(studyData));
+  check("모드 시간 연구 53개 데이터", studyData.modStudies === 53, JSON.stringify(studyData));
 
   // 순서대로만 살 수 있고, 산 연구의 효과가 실제 게임 값에 반영되는지 (272: 레플리칸티 갤럭시 최대치 +5)
   const studyBuy = await page.evaluate(async () => {
@@ -282,6 +282,44 @@ try {
   check("모드 연구 끄기/켜기 (숨김·구매 불가 → 다시 표시)",
     !toggled.off.title && !toggled.off.shown && !toggled.off.bought && toggled.on.title && toggled.on.last,
     JSON.stringify(toggled));
+
+  // 시간 팽창 갈래: 팽창을 해금해야 첫 연구(281)를 살 수 있고, 사면 팽창 시간 획득이 3배가 된다
+  const dilation = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    Currency.timeTheorems.bumpTo(new Decimal(5000));
+    const lockedBuy = TimeStudy(281).purchase();
+    player.dilation.studies.push(1);
+    await sleep(300);
+    const dtBefore = ModRewards.decimal("dtMult").toNumber();
+    const bought = TimeStudy(281).purchase();
+    await sleep(300);
+    return { lockedBuy, unlocked: PlayerProgress.dilationUnlocked(), bought, ratio: ModRewards.decimal("dtMult").toNumber() / dtBefore };
+  });
+  check("시간 팽창 갈래 (팽창 해금 후 281 구매 → 팽창 시간 ×3)",
+    !dilation.lockedBuy && dilation.unlocked && dilation.bought && Math.abs(dilation.ratio - 3) < 1e-9, JSON.stringify(dilation));
+
+  // 업적 자동 해금: 291~293을 사면 2분(게임 시간)마다 현실 이전 업적이 하나씩 해금된다
+  const autoAch = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const bought = [291, 292, 293].map(id => TimeStudy(id).purchase());
+    const before = ModTimeStudies.lockedAchievementCount;
+    ADMod.gameSpeed = 1000;
+    await sleep(1500);
+    ADMod.gameSpeed = 1;
+    return { bought, period: ModTimeStudies.achievementPeriod, before, after: ModTimeStudies.lockedAchievementCount };
+  });
+  check("업적 자동 해금 연구 (291~293, 2분마다 1개)",
+    autoAch.bought.every(Boolean) && autoAch.period === 120000 && autoAch.before - autoAch.after >= 3,
+    JSON.stringify(autoAch));
+
+  await page.evaluate(() => Tab.eternity.studies.show(true));
+  await wait(1500);
+  const titles = await page.evaluate(() => [...document.querySelectorAll(".c-ad-mod-study-title")].map(e => e.innerText));
+  check("트리에 시간 팽창 갈래와 업적 자동 해금 줄 표시",
+    titles.some(t => t.includes("시간 팽창")) && titles.some(t => t.includes("업적 자동 해금")), JSON.stringify(titles));
+  await page.evaluate(() => [...document.querySelectorAll(".c-ad-mod-study-title")].at(-1).scrollIntoView());
+  await wait(300);
+  await page.screenshot({ path: `${SHOTS}/8-dilation-achievement-studies.png` });
 
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {

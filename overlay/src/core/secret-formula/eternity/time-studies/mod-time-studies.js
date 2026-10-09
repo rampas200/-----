@@ -1,19 +1,33 @@
 // [AD Mod] 모드 시간 연구 데이터
-// 원래 시간 연구 트리 아래에 4갈래(반물질, 무한 차원, EP, 복제자) × 10단계 연구를 붙인다.
+// 원래 시간 연구 트리 아래에 5갈래(반물질, 무한 차원, EP, 복제자, 시간 팽창) × 10단계 연구와
+// 업적 자동 해금 연구 3개를 붙인다.
 // 원래 연구와 같은 데이터베이스(normalTimeStudies)에 들어가므로 구매, 리스펙, 트리 내보내기/가져오기,
-// 오토메이터가 그대로 동작한다. id는 241~280 (원래 연구와 겹치지 않고, 300 초과는 트라이어드라서 피한다).
+// 오토메이터가 그대로 동작한다. id는 241~293 (원래 연구와 겹치지 않고, 300 초과는 트라이어드라서 피한다).
 //
-// 갈래마다 첫 연구는 관련된 원래 연구가 있어야 살 수 있고, 그다음부터는 바로 위 연구가 필요하다.
+// 갈래마다 첫 연구는 시작 조건(관련된 원래 연구, 또는 시간 팽창 해금)이 필요하고, 그다음부터는 바로 위 연구가 필요하다.
 // 효과는 보너스 효과 엔진(core/mod-rewards.js)의 채널로 적용된다. 공식은 원시 상태값만 읽는다.
 
-// 단계별 비용 (TT)
+// 단계별 비용 (TT). 시간 팽창 갈래는 팽창 이후에 열리므로 더 비싸다.
 const COSTS = [4, 6, 9, 13, 20, 30, 45, 70, 110, 170];
+const DILATION_COSTS = [20, 30, 45, 65, 100, 150, 225, 350, 550, 850];
 
+// 시작 조건(rootStudy): 첫 연구에 필요한 원래 연구. 원래 연구 대신 조건이 필요하면 rootCondition/rootText를 쓴다.
 export const MOD_STUDY_BRANCHES = [
   { key: "antimatter", name: "반물질", firstId: 241, rootStudy: 71, colorClass: "o-time-study-antimatter-dim" },
   { key: "infinity", name: "무한 차원", firstId: 251, rootStudy: 72, colorClass: "o-time-study-infinity-dim" },
   { key: "eternity", name: "EP", firstId: 261, rootStudy: 61, colorClass: "o-time-study-time-dim" },
   { key: "replicanti", name: "복제자", firstId: 271, rootStudy: 22, colorClass: "o-time-study-passive" },
+  {
+    key: "dilation", name: "시간 팽창", firstId: 281, rootStudy: null, colorClass: "o-time-study-dilation",
+    rootCondition: () => PlayerProgress.dilationUnlocked(), rootText: "시간 팽창 해금 필요", costs: DILATION_COSTS,
+  },
+];
+
+// 업적 자동 해금 연구: 갈래 아래 별도 줄. 산 연구 중 가장 짧은 주기마다 현실 이전 업적을 하나씩 해금한다.
+export const MOD_ACHIEVEMENT_STUDIES = [
+  { id: 291, cost: 15, periodMinutes: 30, name: "업적 자동 해금 I" },
+  { id: 292, cost: 60, periodMinutes: 10, name: "업적 자동 해금 II" },
+  { id: 293, cost: 250, periodMinutes: 2, name: "업적 자동 해금 III" },
 ];
 
 const fixed = (channel, value) => ({ channel, value });
@@ -96,15 +110,36 @@ const BRANCH_STUDIES = {
     ["복제 은하 강화 II", "레플리칸티 갤럭시 효과 +25%", fixed("replicantiGalaxyPower", 0.25)],
     ["복제 정점", "레플리칸티 속도 ×20", fixed("replicantiSpeed", 20)],
   ],
+  dilation: [
+    ["팽창 가속", "팽창 시간 ×3", fixed("dtMult", 3)],
+    ["타키온 증폭", "타키온 입자 ×2", fixed("tpMult", 2)],
+    ["완화된 팽창", "팽창 페널티 완화: 팽창 지수 0.75 → 0.76", fixed("dilationExponent", 0.01)],
+    ["팽창 속 반물질", "팽창 중 모든 반물질 차원 ×1e20",
+      { ...fixed("adMult", 1e20), when: "팽창 중", condition: () => player.dilation.active }],
+    ["팽창 시간 공명", "보유한 팽창 시간에 비례해 시간 차원 강화 (팽창 시간^0.05)",
+      dyn("tdMult", () => Currency.dilatedTime.value.plus(1).pow(0.05))],
+    ["추가 타키온 은하", "타키온 은하 +5", fixed("extraTachyonGalaxies", 5)],
+    ["타키온 정리", "타키온 입자 자릿수 50개마다 시간 정리(TT) +1/초",
+      dyn("ttPerSecond", () => Currency.tachyonParticles.value.plus(1).log10() / 50)],
+    ["완화된 팽창 II", "팽창 지수 +0.02 더", fixed("dilationExponent", 0.02)],
+    ["팽창 시간 증폭", "팽창 시간 ×(타키온 은하 수+1)",
+      dyn("dtMult", () => player.dilation.totalTachyonGalaxies + 1)],
+    ["팽창 정점", "팽창 시간 자릿수만큼 EP +×1",
+      dyn("epMult", () => 1 + Currency.dilatedTime.value.plus(1).log10())],
+  ],
 };
 
 function makeStudy(branch, depth, [name, text, part]) {
   const id = branch.firstId + depth;
-  const previous = depth === 0 ? branch.rootStudy : id - 1;
-  const rootNote = depth === 0 ? ` (연구 ${branch.rootStudy} 필요)` : "";
+  let previous = id - 1;
+  let rootNote = "";
+  if (depth === 0) {
+    previous = branch.rootStudy ?? branch.rootCondition;
+    rootNote = ` (${branch.rootText ?? `연구 ${branch.rootStudy} 필요`})`;
+  }
   return {
     id,
-    cost: COSTS[depth],
+    cost: (branch.costs ?? COSTS)[depth],
     // 모드 연구를 끄면(또는 스피드런 중이면) 살 수 없다
     requirement: [previous, () => ModTimeStudies.isEnabled],
     reqType: TS_REQUIREMENT_TYPE.ALL,
@@ -122,5 +157,35 @@ function makeStudy(branch, depth, [name, text, part]) {
   };
 }
 
-export const modTimeStudies = MOD_STUDY_BRANCHES.flatMap(branch =>
-  BRANCH_STUDIES[branch.key].map((entry, depth) => makeStudy(branch, depth, entry)));
+function makeAchievementStudy({ id, cost, periodMinutes, name }, index) {
+  return {
+    id,
+    cost,
+    // 첫 연구는 연구 11만 있으면 되고, 그다음은 앞 연구가 필요하다
+    requirement: [index === 0 ? 11 : id - 1, () => ModTimeStudies.isEnabled],
+    reqType: TS_REQUIREMENT_TYPE.ALL,
+    unlocked: () => ModTimeStudies.isEnabled,
+    description: `[${name}] ${formatMinutes(periodMinutes)}마다 아직 못 얻은 현실 이전 업적을 하나씩 자동 해금`,
+    // 화면 표시용: 남은 업적 수
+    effect: () => ModTimeStudies.lockedAchievementCount,
+    formatEffect: value => `남은 업적 ${value}개`,
+    isModStudy: true,
+    modBranch: "achievements",
+    modDepth: index,
+    modClass: "o-time-study-idle",
+    achievementPeriodMinutes: periodMinutes,
+    note: name,
+    // 효과는 엔진 채널이 아니라 ModTimeStudies.achievementTick이 처리한다
+    parts: [],
+  };
+}
+
+function formatMinutes(minutes) {
+  return `${minutes}분`;
+}
+
+export const modTimeStudies = [
+  ...MOD_STUDY_BRANCHES.flatMap(branch =>
+    BRANCH_STUDIES[branch.key].map((entry, depth) => makeStudy(branch, depth, entry))),
+  ...MOD_ACHIEVEMENT_STUDIES.map(makeAchievementStudy),
+];

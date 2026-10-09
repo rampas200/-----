@@ -79,7 +79,7 @@
 
 ## 모드 시간 연구
 
-영원(Eternity)의 **시간 연구 트리 맨 아래**에 4갈래 × 10단계, 총 40개 연구를 추가했습니다.
+영원(Eternity)의 **시간 연구 트리 맨 아래**에 5갈래 × 10단계 연구와 업적 자동 해금 연구 3개, 총 53개를 추가했습니다.
 원래 연구처럼 TT로 사고, 리스펙하면 돌려받고, 트리 내보내기/가져오기와 오토메이터에서도 id로 쓸 수 있습니다.
 
 | 갈래 | id | 시작 조건 | 주요 효과 |
@@ -88,10 +88,16 @@
 | 무한 차원 (주황) | 251~260 | 연구 72 | IP/영원 횟수 비례 무한 차원, **무한 파워 변환 지수 +0.25/+0.5**, 8번째 무한 차원 ×1e10, EC 완료 비례 |
 | EP (보라) | 261~270 | 연구 61 | EP 배율, 영원 시작 IP 1e50, 영원 횟수 ×5, TT 생성, EP 자동 획득, 시간 차원 강화 |
 | 복제자 (파랑) | 271~280 | 연구 22 | 레플리칸티 속도, **레플리칸티 갤럭시 최대치 +5/+10**, 레플리칸티 갤럭시 효과 +10%/+25% |
+| 시간 팽창 | 281~290 | 시간 팽창 해금 | 팽창 시간/타키온 입자 증가, **팽창 페널티 완화 (지수 0.75 → 0.78)**, 팽창 중 반물질 차원 ×1e20, 타키온 은하 +5, 타키온 비례 TT 생성 |
+| 업적 자동 해금 (노랑) | 291~293 | 연구 11 | 30분 → 10분 → 2분(게임 시간)마다 아직 못 얻은 현실 이전 업적을 하나씩 자동 해금 |
 
 - 갈래의 첫 연구는 시작 조건 연구가 필요하고, 그다음은 바로 위 연구가 필요합니다.
   반물질/무한 차원 갈래는 차원 경로(71/72)와 묶여 있어서, 경로를 하나만 고를 수 있을 때는 그 갈래만 열립니다.
 - 비용은 단계마다 4, 6, 9, 13, 20, 30, 45, 70, 110, 170 TT입니다 (갈래당 477 TT).
+  시간 팽창 갈래는 20~850 TT (총 2385 TT), 업적 자동 해금은 15 / 60 / 250 TT입니다.
+- 업적 자동 해금은 원래 게임에서는 현실 이후에만 있는 기능입니다. 모드판은 타이머를 세이브(`adMod.achTimer`)에 따로 저장하고,
+  산 연구 중 가장 짧은 주기를 씁니다. 자동으로 얻은 업적은 원래 게임처럼 "자동 업적"으로 기록됩니다
+  (현실 업그레이드 'Paradoxically Attain' 조건에 영향).
 - Shift+클릭하면 시작 조건 연구부터 누른 연구까지 한 번에 삽니다.
 - 업적 162 "모든 시간 연구"는 원래 연구 58개만 셉니다.
 - 데이터 위치: `overlay/src/core/secret-formula/eternity/time-studies/mod-time-studies.js`
@@ -103,7 +109,7 @@
 확인 항목: 게임 시작, 화면 맞춤, 보너스 보상 적용, 시작 반물질, 게임 속도, Mod 탭과 Mod Bonuses 탭,
 탭으로 여는 업적 툴팁, 챌린지 상자, 모드 업그레이드 자동 해금과 알림, 무한 횟수 자동 획득,
 새로고침 후 해금 유지, Mod Upgrades 탭, 모드 시간 연구(구매 순서, 실제 효과, Shift+클릭, 내보내기/리스펙/가져오기,
-트리 화면 표시, 끄기/켜기). 하나라도 실패하면 배포하지 않습니다.
+트리 화면 표시, 끄기/켜기, 시간 팽창 갈래, 업적 자동 해금). 하나라도 실패하면 배포하지 않습니다.
 스크린샷은 Actions 실행 결과의 `smoke-screenshots` 에 올라갑니다.
 저장소가 **공개(public)** 일 때는 빌드 결과를 `gh-pages` 브랜치에 올려 웹사이트로 띄웁니다.
 무료 GitHub 계정은 비공개 저장소에서 GitHub Pages를 쓸 수 없어서, 비공개일 때는 빌드만 합니다.
@@ -168,19 +174,19 @@ scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모
 
 | 파일 | 변경 내용 |
 | --- | --- |
-| `src/game.js` | 게임 속도 배율, 무한 횟수/EP 보너스, 무한/영원 횟수·IP·EP 자동 획득, TT 생성 |
+| `src/game.js` | 게임 속도 배율, 무한 횟수/EP 보너스, 무한/영원 횟수·IP·EP 자동 획득, TT 생성, 업적 자동 해금 타이머 |
 | `src/core/dimensions/antimatter-dimension.js` | 생산 배율, 모든/특정 차원 보너스, 10개 구매 배율 보너스 |
-| `src/core/tickspeed.js` | 틱스피드, 갤럭시 효과 보너스, 레플리칸티 갤럭시 효과 |
+| `src/core/tickspeed.js` | 틱스피드, 갤럭시 효과 보너스, 레플리칸티 갤럭시 효과, 추가 타키온 은하 |
 | `src/core/dimboost.js`, `src/core/galaxy.js` | 차원 부스트 배율, 부스트/갤럭시 요구량 보너스, 먼 갤럭시 비용 증가 지연 |
 | `src/core/currency.js`, `src/core/sacrifice.js` | 시작 반물질, 영원 시작 IP, 차원 희생 보너스 |
-| `src/core/player.js` | 세이브에 모드 업그레이드 해금 상태(`adMod.upgradeBits`) 추가 |
+| `src/core/player.js` | 세이브에 모드 업그레이드 해금 상태(`adMod.upgradeBits`)와 업적 자동 해금 타이머(`adMod.achTimer`) 추가 |
 | `src/core/infinity-upgrades.js`, `src/core/replicanti.js` | IP, 레플리칸티 속도 보너스, 레플리칸티 갤럭시 최대치 |
 | `src/core/dimensions/infinity-dimension.js`, `src/core/dimensions/time-dimension.js` | 무한/시간 차원 보너스, 무한 차원별 배율, 무한 파워 변환 지수 |
 | `src/core/secret-formula/eternity/time-studies/normal-time-studies.js` | 시간 연구 데이터베이스에 모드 연구 40개 추가 |
 | `src/core/time-studies/normal-time-study.js` | 모드 연구 Shift+클릭 연속 구매 |
 | 시간 연구 탭 컴포넌트 3개 (`time-study-tree-layout.js`, `TimeStudiesTab.vue`, `TimeStudyButton.vue`) | 트리 아래 모드 연구 구역, 연결선, 갈래 색 |
 | `src/core/secret-formula/achievements/normal-achievements.js` | 업적 162가 원래 연구만 세도록 |
-| `src/core/eternity.js`, `src/core/dilation.js` | 영원 횟수, 타키온 입자, 팽창 시간 보너스 |
+| `src/core/eternity.js`, `src/core/dilation.js` | 영원 횟수, 타키온 입자, 팽창 시간 보너스, 팽창 지수 완화 |
 | `src/core/machines.js`, `src/core/glyphs/auto-glyph-processor.js`, `src/core/black-hole.js` | 현실 기계, 글리프 레벨, 블랙홀 보너스 |
 | 업적/챌린지 화면 컴포넌트 5개 | 툴팁과 챌린지 상자에 "모드 보너스" 줄 추가 |
 | `src/core/secret-formula/news.js` | 한국어 뉴스 목록 추가 |
