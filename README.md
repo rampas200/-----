@@ -137,7 +137,8 @@
 확인 항목: 게임 시작, 화면 맞춤, 보너스 보상 적용, 시작 반물질, 게임 속도, Mod 탭과 Mod Bonuses 탭,
 탭으로 여는 업적 툴팁, 챌린지 상자, 모드 업그레이드 자동 해금과 알림, 무한 횟수 자동 획득,
 새로고침 후 해금 유지, Mod Upgrades 탭, 모드 시간 연구(구매 순서, 실제 효과, Shift+클릭, 내보내기/리스펙/가져오기,
-트리 화면 표시, 끄기/켜기, 시간 팽창 갈래, 업적 자동 해금). 하나라도 실패하면 배포하지 않습니다.
+트리 화면 표시, 끄기/켜기, 시간 팽창 갈래, 업적 자동 해금), 모드 퍽(구매, 효과, 끄기/켜기, 터치 두 번 탭 구매),
+실제 터치로 현실 글리프 고르기와 현실 진행. 하나라도 실패하면 배포하지 않습니다.
 스크린샷은 Actions 실행 결과의 `smoke-screenshots` 에 올라갑니다.
 저장소가 **공개(public)** 일 때는 빌드 결과를 `gh-pages` 브랜치에 올려 웹사이트로 띄웁니다.
 무료 GitHub 계정은 비공개 저장소에서 GitHub Pages를 쓸 수 없어서, 비공개일 때는 빌드만 합니다.
@@ -157,6 +158,8 @@
 팁:
 - 화면은 PC와 같은 배치를 휴대폰 크기로 줄여서 보여 줍니다. **가로 모드**가 보기 편하고, 두 손가락으로 확대할 수 있습니다.
 - 업적 툴팁은 업적을 한 번 탭하면 나옵니다.
+- 현실로 넘어갈 때 글리프는 탭해서 고릅니다. 탭하면 선택되면서 설명 툴팁도 같이 뜹니다.
+  글리프 인벤토리에서는 빠르게 두 번 탭하면 장착됩니다 (원본 웹판은 휴대폰에서 둘 다 안 되던 것을 고쳤습니다).
 - 브라우저 메뉴의 **홈 화면에 추가**를 쓰면 앱처럼 전체 화면으로 열립니다.
 - 세이브는 그 브라우저에 저장됩니다. 기기를 바꿀 때는 Options → Saving의 Export/Import를 쓰세요.
 
@@ -227,6 +230,7 @@ scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모
 | `src/core/secret-formula/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses / Mod Upgrades 탭 추가 |
 | `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`, `ModTimeStudies`, `ModPerks`를 전역으로 노출 |
 | `public/index.html` | 모바일 화면 맞춤(viewport), 홈 화면 앱 설정 |
+| `src/components/GlyphComponent.vue`, `src/components/modals/prestige/RealityModal.vue` | 휴대폰에서 글리프 탭이 클릭으로 처리되도록 (현실 글리프 선택, 더블 탭 장착) |
 
 ## 모드 고치기
 

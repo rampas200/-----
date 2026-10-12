@@ -416,6 +416,47 @@ try {
   await wait(500);
   await page.screenshot({ path: `${SHOTS}/10-mod-perks-zoomed-out.png` });
 
+  // 현실 글리프 선택: 실제 터치로 글리프를 탭하면 선택되고, 확인을 탭하면 그 글리프를 받고 현실로 넘어간다
+  // (원본 게임은 터치가 끝날 때 툴팁을 띄우며 preventDefault를 불러서 휴대폰에서는 글리프를 고를 수 없었다)
+  const realitySetup = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    Modal.hideAll();
+    player.records.thisReality.maxEP = new Decimal("1e4000");
+    if (!player.dilation.studies.includes(6)) player.dilation.studies.push(6);
+    player.options.animations.reality = false;
+    Tab.reality.glyphs.show(true);
+    await sleep(500);
+    Modal.reality.show();
+    await sleep(1500);
+    return {
+      available: isRealityAvailable(),
+      realities: player.realities,
+      choices: document.querySelectorAll(".l-modal-glyph-selection__glyph").length,
+      types: GlyphSelection.upcomingGlyphs.map(glyph => glyph.type),
+      glyphCount: Glyphs.inventory.filter(glyph => glyph !== null).length,
+    };
+  });
+  await page.locator(".l-modal-glyph-selection__glyph").nth(1).tap();
+  await wait(600);
+  const glyphPick = await page.evaluate(() => ({
+    selected: [...document.querySelectorAll(".l-modal-glyph-selection__glyph")]
+      .findIndex(el => el.classList.contains("l-modal-glyph-selection__glyph--selected")),
+    canConfirm: document.querySelector(".c-modal__confirm-btn") !== null,
+  }));
+  await page.screenshot({ path: `${SHOTS}/11-reality-glyph-choice.png` });
+  check("휴대폰 터치로 현실 글리프 선택", realitySetup.available && realitySetup.choices >= 4 &&
+    glyphPick.selected === 1 && glyphPick.canConfirm, JSON.stringify({ ...realitySetup, ...glyphPick }));
+  if (glyphPick.canConfirm) await page.locator(".c-modal__confirm-btn").tap();
+  await wait(2000);
+  const afterReality = await page.evaluate(() => {
+    const glyphs = Glyphs.inventory.filter(glyph => glyph !== null);
+    const newest = glyphs.reduce((a, b) => (b.id > a.id ? b : a));
+    return { realities: player.realities, glyphCount: glyphs.length, newestType: newest.type };
+  });
+  check("확인을 탭하면 고른 글리프를 받고 현실로 넘어감",
+    afterReality.realities === realitySetup.realities + 1 && afterReality.glyphCount === realitySetup.glyphCount + 1 &&
+    afterReality.newestType === realitySetup.types[1], JSON.stringify(afterReality));
+
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {
   check("테스트 실행", false, error.stack);

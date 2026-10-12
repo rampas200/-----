@@ -21,6 +21,57 @@ index da4a1a8..0b8e740 100644
    <meta name="Antimatter Dimensions" content="A game about huge numbers and watching them go up." >
    <link href="https://fonts.googleapis.com/css?family=PT+Mono" rel="stylesheet">
    <link rel="stylesheet" type="text/css" href="stylesheets/fontawesome/css/all.css">
+diff --git a/src/components/GlyphComponent.vue b/src/components/GlyphComponent.vue
+index bef95a9..ba4d847 100644
+--- a/src/components/GlyphComponent.vue
++++ b/src/components/GlyphComponent.vue
+@@ -666,6 +666,9 @@ export default {
+       this.isTouched = true;
+     },
+     touchEnd(e) {
++      // [AD Mod] 아래 preventDefault 때문에 휴대폰에서는 click 이벤트가 생기지 않는다.
++      // 손가락이 글리프 밖으로 나가지 않은 탭이면 click 대신 clicked를 직접 보낸다 (현실 글리프 선택, 더블 탭 장착).
++      const isTap = !this.suppressTooltip;
+       if (this.isCurrentTooltip) {
+         e.preventDefault();
+         this.hideTooltip();
+@@ -676,6 +679,15 @@ export default {
+       }
+       this.suppressTooltip = false;
+       this.isTouched = false;
++      if (isTap) {
++        this.lastTapTime = Date.now();
++        this.$emit("clicked", this.glyph.id);
++      }
++    },
++    // [AD Mod] 탭으로 이미 clicked를 보냈는데 브라우저가 click도 보내면 한 번만 처리한다 (더블 클릭으로 오인 방지)
++    mouseClicked() {
++      if (Date.now() - (this.lastTapTime ?? 0) < 500) return;
++      this.$emit("clicked", this.glyph.id);
+     },
+     touchMove(e) {
+       const t = e.changedTouches[0];
+@@ -801,7 +813,7 @@ export default {
+       @click.shift.exact="$emit('shiftClicked', glyph.id)"
+       @click.ctrl.shift.exact="$emit('ctrlShiftClicked', glyph.id)"
+       @click.meta.shift.exact="$emit('ctrlShiftClicked', glyph.id)"
+-      @click.exact="$emit('clicked', glyph.id)"
++      @click.exact="mouseClicked"
+     />
+   </div>
+ </template>
+diff --git a/src/components/modals/prestige/RealityModal.vue b/src/components/modals/prestige/RealityModal.vue
+index 2c274f8..32e945d 100644
+--- a/src/components/modals/prestige/RealityModal.vue
++++ b/src/components/modals/prestige/RealityModal.vue
+@@ -166,6 +166,7 @@ export default {
+         :ignore-modified-level="true"
+         :show-sacrifice="canSacrifice"
+         @click.native="select(index)"
++        @clicked="select(index)"
+       />
+     </div>
+     <div v-if="!firstReality">
 diff --git a/src/components/tabs/eternity-challenges/EternityChallengeBox.vue b/src/components/tabs/eternity-challenges/EternityChallengeBox.vue
 index 2d87893..34be84c 100644
 --- a/src/components/tabs/eternity-challenges/EternityChallengeBox.vue
