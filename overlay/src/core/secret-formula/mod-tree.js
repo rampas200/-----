@@ -103,3 +103,116 @@ export const modTreeRewards = [
     id: 1000 + milestone.level, note: `레벨 ${milestone.level} 열매`, parts: milestone.parts,
   })),
 ];
+
+// ---- 나무 업그레이드: 각 단계의 재화로 한 번 사면 영구 (어떤 리셋에도 남는다) ----
+// 효과 종류
+//  - growthMult: 성장 속도 × (숫자 또는 함수)
+//  - waterDurationMs / waterCooldownMs / waterMult: 물 주기 지속 시간 +, 재사용 대기 -, 배율 +
+//  - autoWater: 재사용 대기가 끝나면 자동으로 물을 준다
+const logOf = value => new Decimal(value).max(1).log10();
+
+export const TREE_UPGRADE_ROWS = [
+  { name: "반물질", currency: "antimatter", currencyName: "반물질" },
+  { name: "무한", currency: "infinityPoints", currencyName: "IP" },
+  { name: "영원", currency: "eternityPoints", currencyName: "EP" },
+  { name: "시간 팽창", currency: "dilatedTime", currencyName: "팽창 시간" },
+  { name: "현실", currency: "realityMachines", currencyName: "현실 기계" },
+];
+
+export const TREE_UPGRADES = [
+  { id: 1, row: 0, name: "비료", cost: 1e40, text: "성장 속도 ×1.2", growthMult: 1.2 },
+  { id: 2, row: 0, name: "물뿌리개", cost: 1e100, text: "물 주기 지속 시간 +30초", waterDurationMs: 30000 },
+  { id: 3, row: 0, name: "햇빛", cost: 1e250, text: "성장 속도 ×1.2", growthMult: 1.2 },
+  { id: 4, row: 1, name: "무한 비료", cost: 1e10, text: "성장 속도 ×1.25", growthMult: 1.25 },
+  { id: 5, row: 1, name: "빗물받이", cost: 1e50, text: "물 주기 재사용 대기 -3분", waterCooldownMs: 3 * 60000 },
+  {
+    id: 6, row: 1, name: "무한의 뿌리", cost: 1e150, text: "총 무한 횟수의 자릿수 1개마다 성장 속도 +5%",
+    growthMult: () => 1 + logOf(Currency.infinitiesTotal.value) / 20,
+  },
+  { id: 7, row: 2, name: "영원 비료", cost: 1e5, text: "성장 속도 ×1.3", growthMult: 1.3 },
+  { id: 8, row: 2, name: "깊은 물", cost: 1e30, text: "물 주기 배율 +1 (×2 → ×3)", waterMult: 1 },
+  {
+    id: 9, row: 2, name: "영원의 뿌리", cost: 1e100, text: "영원 횟수의 자릿수 1개마다 성장 속도 +5%",
+    growthMult: () => 1 + logOf(Currency.eternities.value) / 20,
+  },
+  { id: 10, row: 3, name: "타키온 비료", cost: 1e10, text: "성장 속도 ×1.3", growthMult: 1.3 },
+  { id: 11, row: 3, name: "느려진 물방울", cost: 1e25, text: "물 주기 지속 시간 +60초", waterDurationMs: 60000 },
+  {
+    id: 12, row: 3, name: "시간의 나이테", cost: 1e40, text: "나무 레벨 10마다 성장 속도 +5%",
+    growthMult: () => 1 + 0.05 * Math.floor(ModTree.level / 10),
+  },
+  { id: 13, row: 4, name: "현실 비료", cost: 10, text: "성장 속도 ×1.5", growthMult: 1.5 },
+  { id: 14, row: 4, name: "자동 급수", cost: 1e4, text: "재사용 대기가 끝나면 자동으로 물 주기", autoWater: true },
+  {
+    id: 15, row: 4, name: "세계수", cost: 1e8, text: "현실 횟수의 자릿수 1개마다 성장 속도 +10%",
+    growthMult: () => 1 + Math.log10(player.realities + 1) / 10,
+  },
+];
+
+// ---- 나무 도전과제: 조건을 달성하면 영구히 완료, 성장 속도 +bonus (도전과제끼리는 더한다) ----
+const branchPointList = () => TREE_BRANCHES.map(branch => ModTree.branchPoints(branch.id));
+
+export const TREE_QUESTS = [
+  { id: 1, name: "새싹", text: "나무 레벨 1", bonus: 0.05, check: () => ModTree.level >= 1 },
+  { id: 2, name: "어린 나무", text: "나무 레벨 10", bonus: 0.05, check: () => ModTree.level >= 10 },
+  { id: 3, name: "청년 나무", text: "나무 레벨 25", bonus: 0.1, check: () => ModTree.level >= 25 },
+  { id: 4, name: "큰 나무", text: "나무 레벨 50", bonus: 0.15, check: () => ModTree.level >= 50 },
+  { id: 5, name: "고목", text: "나무 레벨 75", bonus: 0.2, check: () => ModTree.level >= 75 },
+  {
+    id: 6, name: "정원사", text: "물 주기 10번", bonus: 0.05,
+    check: () => ModTree.waterCount >= 10, progress: () => `${formatInt(ModTree.waterCount)} / ${formatInt(10)}`,
+  },
+  {
+    id: 7, name: "부지런한 정원사", text: "물 주기 100번", bonus: 0.1,
+    check: () => ModTree.waterCount >= 100, progress: () => `${formatInt(ModTree.waterCount)} / ${formatInt(100)}`,
+  },
+  {
+    id: 8, name: "다섯 갈래", text: "다섯 가지 모두에 양분 심기", bonus: 0.1,
+    check: () => branchPointList().every(points => points > 0),
+  },
+  {
+    id: 9, name: "한 우물", text: "한 가지에 양분 25개", bonus: 0.1,
+    check: () => Math.max(...branchPointList()) >= 25,
+  },
+  {
+    id: 10, name: "열매 수확", text: "열매 5개", bonus: 0.1,
+    check: () => TREE_MILESTONES.countWhere(m => ModTree.level >= m.level) >= 5,
+  },
+  {
+    id: 11, name: "무한의 정원", text: `총 무한 ${1000}회`, bonus: 0.05,
+    check: () => Currency.infinitiesTotal.gte(1000),
+  },
+  {
+    id: 12, name: "영원의 정원", text: `영원 ${1000}회`, bonus: 0.1,
+    check: () => Currency.eternities.gte(1000),
+  },
+  {
+    id: 13, name: "도전하는 정원", text: "일반 챌린지 12개 모두 완료", bonus: 0.05,
+    check: () => NormalChallenges.all.every(challenge => challenge.isCompleted),
+  },
+  {
+    id: 14, name: "무한 챌린지 정원", text: "무한 챌린지 8개 모두 완료", bonus: 0.05,
+    check: () => InfinityChallenges.completed.length >= 8,
+  },
+  {
+    id: 15, name: "영원 챌린지 정원", text: "영원 챌린지 총 30회 완료", bonus: 0.1,
+    check: () => EternityChallenges.completions >= 30,
+  },
+  { id: 16, name: "팽창된 정원", text: "시간 팽창 해금", bonus: 0.1, check: () => PlayerProgress.dilationUnlocked() },
+  { id: 17, name: "현실의 정원", text: "현실 1회", bonus: 0.1, check: () => player.realities >= 1 },
+  {
+    id: 18, name: "업그레이드 수집가", text: "나무 업그레이드 8개", bonus: 0.1,
+    check: () => ModTree.boughtUpgradeCount >= 8,
+    progress: () => `${formatInt(ModTree.boughtUpgradeCount)} / ${formatInt(8)}`,
+  },
+  {
+    id: 19, name: "완성된 정원", text: "나무 업그레이드 15개 모두", bonus: 0.2,
+    check: () => ModTree.boughtUpgradeCount >= 15,
+    progress: () => `${formatInt(ModTree.boughtUpgradeCount)} / ${formatInt(15)}`,
+  },
+  {
+    id: 20, name: "오래된 정원", text: "지금까지 자란 양 1,000,000", bonus: 0.15,
+    check: () => ModTree.totalGrowth >= 1e6,
+    progress: () => `${format(ModTree.totalGrowth, 2, 0)} / ${format(1e6, 2, 0)}`,
+  },
+];

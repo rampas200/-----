@@ -24,6 +24,13 @@ export default {
       totalGrowth: 0,
       rate: 0,
       baseRateMult: 1,
+      stageMult: 1,
+      milestoneMult: 1,
+      upgradeMult: 1,
+      questMult: 1,
+      waterMult: 2,
+      waterDuration: 60000,
+      autoWater: false,
       secondsToNext: Infinity,
       isWatered: false,
       waterTimeLeft: 0,
@@ -41,12 +48,12 @@ export default {
       return Math.min(100 * this.growth / this.cost, 100);
     },
     waterText() {
-      const config = ModTree.growthConfig;
       if (this.isWatered) {
-        return `물을 머금는 중: 성장 ${formatX(config.waterMult)} (${timeText(this.waterTimeLeft / 1000)} 남음)`;
+        return `물을 머금는 중: 성장 ${formatX(this.waterMult)} (${timeText(this.waterTimeLeft / 1000)} 남음)`;
       }
-      if (this.waterCooldown > 0) return `다시 물 주기까지 ${timeText(this.waterCooldown / 1000)}`;
-      return `물 주기: ${timeText(config.waterDurationMs / 1000)} 동안 성장 ${formatX(config.waterMult)}`;
+      const auto = this.autoWater ? " (자동)" : "";
+      if (this.waterCooldown > 0) return `다시 물 주기까지 ${timeText(this.waterCooldown / 1000)}${auto}`;
+      return `물 주기: ${timeText(this.waterDuration / 1000)} 동안 성장 ${formatX(this.waterMult)}${auto}`;
     },
     // ---- 나무 그림 ----
     shownLevel() {
@@ -111,6 +118,13 @@ export default {
       this.totalGrowth = ModTree.totalGrowth;
       this.rate = ModTree.growthPerSecond;
       this.baseRateMult = ModTree.baseRateMultiplier;
+      this.stageMult = ModTree.stageMultiplier;
+      this.milestoneMult = ModTree.milestoneMultiplier;
+      this.upgradeMult = ModTree.upgradeMultiplier;
+      this.questMult = ModTree.questMultiplier;
+      this.waterMult = ModTree.waterMult;
+      this.waterDuration = ModTree.waterDurationMs;
+      this.autoWater = ModTree.hasAutoWater;
       this.secondsToNext = ModTree.secondsToNextLevel;
       this.isWatered = ModTree.isWatered;
       this.waterTimeLeft = ModTree.waterTimeLeft;
@@ -237,8 +251,12 @@ export default {
           (다음 레벨까지 {{ timeText(secondsToNext) }})
         </div>
         <div>
-          성장 속도: 초당 {{ format(rate, 2, 2) }}
-          (진행 단계·열매 {{ formatX(baseRateMult, 2, 2) }}{{ isWatered ? ", 물 주기 중" : "" }})
+          성장 속도: 초당 {{ format(rate, 2, 2) }}{{ isWatered ? ` (물 주기 ${formatX(waterMult)} 포함)` : "" }}
+        </div>
+        <div class="c-ad-mod-tree__breakdown">
+          진행 단계 {{ formatX(stageMult, 2, 2) }} · 열매 {{ formatX(milestoneMult, 2, 2) }} ·
+          나무 업그레이드 {{ formatX(upgradeMult, 2, 2) }} · 도전과제 {{ formatX(questMult, 2, 2) }}
+          = {{ formatX(baseRateMult, 2, 2) }}
         </div>
         <div>지금까지 자란 양: {{ format(totalGrowth, 2, 1) }}</div>
         <div>레벨 효과: 모든 반물질 차원 {{ levelEffect }}</div>
@@ -403,6 +421,11 @@ export default {
 .c-ad-mod-tree__bar-fill {
   height: 100%;
   background-color: var(--color-good);
+}
+
+.c-ad-mod-tree__breakdown {
+  font-size: 1.2rem;
+  opacity: 0.85;
 }
 
 .c-ad-mod-tree__water {

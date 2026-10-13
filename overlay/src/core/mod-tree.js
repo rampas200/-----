@@ -1,13 +1,27 @@
 // [AD Mod] 반물질 나무: 게임 전체에 걸쳐 천천히 자라는 나무
 // 상태는 세이브의 player.adMod.tree에 있고, 어떤 리셋에도 초기화되지 않는다 (하드 리셋만 초기화).
-// 효과 계산은 ModRewards 엔진이 맡고, 여기서는 성장, 레벨, 양분 배분, 물 주기를 처리한다.
+// 효과 계산은 ModRewards 엔진이 맡고, 여기서는 성장, 레벨, 양분 배분, 물 주기,
+// 나무 업그레이드(재화로 구매)와 나무 도전과제(조건 달성)를 처리한다. 둘 다 성장 속도를 올린다.
 
-import { TREE_BRANCHES, TREE_GROWTH, TREE_MILESTONES, TREE_STAGES } from "./secret-formula/mod-tree";
+import {
+  TREE_BRANCHES,
+  TREE_GROWTH,
+  TREE_MILESTONES,
+  TREE_QUESTS,
+  TREE_STAGES,
+  TREE_UPGRADE_ROWS,
+  TREE_UPGRADES
+} from "./secret-formula/mod-tree";
 
 const BRANCH_COUNT = TREE_BRANCHES.length;
 
+const valueOf = effect => (typeof effect === "function" ? effect() : effect);
+
 function defaultTree() {
-  return { growth: 0, level: 0, totalGrowth: 0, branches: Array(BRANCH_COUNT).fill(0), waterUntil: 0, waterReadyAt: 0 };
+  return {
+    growth: 0, level: 0, totalGrowth: 0, branches: Array(BRANCH_COUNT).fill(0), waterUntil: 0, waterReadyAt: 0,
+    upgrades: [], quests: [], waterCount: 0,
+  };
 }
 
 // 예전 세이브에 나무가 없거나 일부 값이 빠져 있어도 동작하도록 채워 넣는다
@@ -20,7 +34,9 @@ function tree() {
   }
   if (!Array.isArray(state.branches)) state.branches = [];
   while (state.branches.length < BRANCH_COUNT) state.branches.push(0);
-  for (const key of ["growth", "level", "totalGrowth", "waterUntil", "waterReadyAt"]) {
+  if (!Array.isArray(state.upgrades)) state.upgrades = [];
+  if (!Array.isArray(state.quests)) state.quests = [];
+  for (const key of ["growth", "level", "totalGrowth", "waterUntil", "waterReadyAt", "waterCount"]) {
     if (!Number.isFinite(state[key])) state[key] = 0;
   }
   return state;
@@ -31,6 +47,9 @@ export const ModTree = {
   milestones: TREE_MILESTONES,
   stages: TREE_STAGES,
   growthConfig: TREE_GROWTH,
+  upgrades: TREE_UPGRADES,
+  upgradeRows: TREE_UPGRADE_ROWS,
+  quests: TREE_QUESTS,
 
   // 꺼져 있거나 스피드런 중이면 자라지 않고 효과도 없다
   get isEnabled() {
@@ -71,19 +90,47 @@ export const ModTree = {
     return Math.max(tree().waterUntil - Date.now(), 0);
   },
 
-  // 물 주기를 뺀 성장 속도 배율 (진행 단계, 이정표)
-  get baseRateMultiplier() {
-    let mult = 1 + TREE_GROWTH.stageBonus * this.reachedStages;
+  // 진행 단계 배율
+  get stageMultiplier() {
+    return 1 + TREE_GROWTH.stageBonus * this.reachedStages;
+  },
+
+  // 열매(이정표) 배율
+  get milestoneMultiplier() {
+    let mult = 1;
     for (const milestone of TREE_MILESTONES) {
       if (milestone.growthMult !== undefined && this.level >= milestone.level) mult *= milestone.growthMult;
     }
     return mult;
   },
 
+  // 나무 업그레이드 배율 (산 업그레이드끼리 곱한다)
+  get upgradeMultiplier() {
+    let mult = 1;
+    for (const upgrade of TREE_UPGRADES) {
+      if (upgrade.growthMult !== undefined && this.isUpgradeBought(upgrade.id)) {
+        mult *= Math.max(valueOf(upgrade.growthMult), 1);
+      }
+    }
+    return mult;
+  },
+
+  // 나무 도전과제 배율 (완료한 도전과제끼리 더한다)
+  get questMultiplier() {
+    return 1 + TREE_QUESTS
+      .filter(quest => this.isQuestDone(quest.id))
+      .reduce((sum, quest) => sum + quest.bonus, 0);
+  },
+
+  // 물 주기를 뺀 성장 속도 배율
+  get baseRateMultiplier() {
+    return this.stageMultiplier * this.milestoneMultiplier * this.upgradeMultiplier * this.questMultiplier;
+  },
+
   // 초당 성장도
   get growthPerSecond() {
     if (!this.isEnabled) return 0;
-    return TREE_GROWTH.baseRate * this.baseRateMultiplier * (this.isWatered ? TREE_GROWTH.waterMult : 1);
+    return TREE_GROWTH.baseRate * this.baseRateMultiplier * (this.isWatered ? this.waterMult : 1);
   },
 
   // 다음 레벨까지 남은 시간 (초, 지금 속도 기준)
@@ -129,7 +176,34 @@ export const ModTree = {
     ModRewards.invalidate();
   },
 
-  // ---- 물 주기 ----
+  // ---- 물 주기 (나무 업그레이드가 지속 시간, 재사용 대기, 배율을 바꾼다) ----
+
+  upgradeSum(key) {
+    return TREE_UPGRADES
+      .filter(upgrade => upgrade[key] !== undefined && this.isUpgradeBought(upgrade.id))
+      .reduce((sum, upgrade) => sum + upgrade[key], 0);
+  },
+
+  get waterDurationMs() {
+    return TREE_GROWTH.waterDurationMs + this.upgradeSum("waterDurationMs");
+  },
+
+  get waterCooldownMs() {
+    // 재사용 대기는 지속 시간보다 짧아지지 않는다
+    return Math.max(TREE_GROWTH.waterCooldownMs - this.upgradeSum("waterCooldownMs"), this.waterDurationMs);
+  },
+
+  get waterMult() {
+    return TREE_GROWTH.waterMult + this.upgradeSum("waterMult");
+  },
+
+  get hasAutoWater() {
+    return TREE_UPGRADES.some(upgrade => upgrade.autoWater && this.isUpgradeBought(upgrade.id));
+  },
+
+  get waterCount() {
+    return tree().waterCount;
+  },
 
   get canWater() {
     return this.isEnabled && this.waterCooldown === 0;
@@ -138,9 +212,64 @@ export const ModTree = {
   water() {
     if (!this.canWater) return false;
     const now = Date.now();
-    tree().waterUntil = now + TREE_GROWTH.waterDurationMs;
-    tree().waterReadyAt = now + TREE_GROWTH.waterCooldownMs;
+    tree().waterUntil = now + this.waterDurationMs;
+    tree().waterReadyAt = now + this.waterCooldownMs;
+    tree().waterCount++;
     return true;
+  },
+
+  // ---- 나무 업그레이드 ----
+
+  isUpgradeBought(id) {
+    return tree().upgrades.includes(id);
+  },
+
+  get boughtUpgradeCount() {
+    return tree().upgrades.length;
+  },
+
+  upgradeById(id) {
+    return TREE_UPGRADES.find(upgrade => upgrade.id === id);
+  },
+
+  upgradeCurrency(upgrade) {
+    return Currency[TREE_UPGRADE_ROWS[upgrade.row].currency];
+  },
+
+  canBuyUpgrade(id) {
+    const upgrade = this.upgradeById(id);
+    return this.isEnabled && !this.isUpgradeBought(id) && this.upgradeCurrency(upgrade).gte(upgrade.cost);
+  },
+
+  buyUpgrade(id) {
+    if (!this.canBuyUpgrade(id)) return false;
+    const upgrade = this.upgradeById(id);
+    this.upgradeCurrency(upgrade).subtract(upgrade.cost);
+    tree().upgrades.push(id);
+    return true;
+  },
+
+  // ---- 나무 도전과제 ----
+
+  isQuestDone(id) {
+    return tree().quests.includes(id);
+  },
+
+  get doneQuestCount() {
+    return tree().quests.length;
+  },
+
+  checkQuests() {
+    const done = [];
+    for (const quest of TREE_QUESTS) {
+      if (!this.isQuestDone(quest.id) && quest.check()) {
+        tree().quests.push(quest.id);
+        done.push(quest);
+      }
+    }
+    for (const quest of done) {
+      GameUI.notify.success(`나무 도전과제 완료: ${quest.name} (성장 속도 +${formatPercents(quest.bonus, 0)})`, 6000);
+    }
   },
 
   // ---- 효과 (보너스 효과 엔진이 묻는다) ----
@@ -161,6 +290,8 @@ export const ModTree = {
 
   tick(realDiff) {
     if (!this.isEnabled || !(realDiff > 0)) return;
+    if (this.hasAutoWater && this.canWater) this.water();
+    this.checkQuests();
     const state = tree();
     const gained = this.growthPerSecond * realDiff / 1000;
     state.growth += gained;

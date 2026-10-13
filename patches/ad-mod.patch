@@ -108,15 +108,17 @@ index 2d87893..34be84c 100644
    </EternityChallengeBoxWrapper>
  </template>
 diff --git a/src/components/tabs/index.js b/src/components/tabs/index.js
-index a5c5b7b..b7d8fd3 100644
+index a5c5b7b..8260b0d 100644
 --- a/src/components/tabs/index.js
 +++ b/src/components/tabs/index.js
-@@ -19,10 +19,14 @@ import InfinityChallengesTab from "./infinity-challenges/InfinityChallengesTab";
+@@ -19,10 +19,16 @@ import InfinityChallengesTab from "./infinity-challenges/InfinityChallengesTab";
  import InfinityDimensionsTab from "./infinity-dimensions/InfinityDimensionsTab";
  import InfinityUpgradesTab from "./infinity-upgrades/InfinityUpgradesTab";
  import LaitelaTab from "./celestial-laitela/LaitelaTab";
 +import ModRewardsTab from "./mod-rewards/ModRewardsTab";
++import ModTreeQuestsTab from "./mod-tree/ModTreeQuestsTab";
 +import ModTreeTab from "./mod-tree/ModTreeTab";
++import ModTreeUpgradesTab from "./mod-tree/ModTreeUpgradesTab";
 +import ModUpgradesTab from "./mod-upgrades/ModUpgradesTab";
  import MultiplierBreakdownTab from "./statistics/MultiplierBreakdownTab";
  import NormalAchievementsTab from "./normal-achievements/NormalAchievementsTab";
@@ -126,7 +128,7 @@ index a5c5b7b..b7d8fd3 100644
  import OptionsSavingTab from "./options-saving/OptionsSavingTab";
  import OptionsVisualTab from "./options-visual/OptionsVisualTab";
  import PastPrestigeRunsTab from "./past-prestige-runs/PastPrestigeRunsTab";
-@@ -49,6 +53,7 @@ const TabComponents = {
+@@ -49,6 +55,7 @@ const TabComponents = {
    OptionsSavingTab,
    OptionsVisualTab,
    OptionsGameplayTab,
@@ -134,13 +136,15 @@ index a5c5b7b..b7d8fd3 100644
    StatisticsTab,
    ChallengeRecordsTab,
    PastPrestigeRunsTab,
-@@ -57,6 +62,9 @@ const TabComponents = {
+@@ -57,6 +64,11 @@ const TabComponents = {
    PreviousSpeedrunTab,
    NormalAchievementsTab,
    SecretAchievementTab,
 +  ModRewardsTab,
 +  ModUpgradesTab,
 +  ModTreeTab,
++  ModTreeUpgradesTab,
++  ModTreeQuestsTab,
    TeresaTab,
    EffarigTab,
    EnslavedTab,
@@ -884,10 +888,10 @@ index d1e5ac4..8beea19 100644
  
    initializeConnections() {
 diff --git a/src/core/player.js b/src/core/player.js
-index eac84b0..4bdff95 100644
+index eac84b0..175bfe7 100644
 --- a/src/core/player.js
 +++ b/src/core/player.js
-@@ -237,6 +237,23 @@ window.player = {
+@@ -237,6 +237,27 @@ window.player = {
      Eternity: true,
      Infinity: true
    },
@@ -904,6 +908,10 @@ index eac84b0..4bdff95 100644
 +      branches: [0, 0, 0, 0, 0],
 +      waterUntil: 0,
 +      waterReadyAt: 0,
++      // 산 나무 업그레이드 id, 완료한 나무 도전과제 id, 물 준 횟수
++      upgrades: [],
++      quests: [],
++      waterCount: 0,
 +    },
 +    // 모드 업적 자동 해금 연구의 타이머 (ms)
 +    achTimer: 0,
@@ -1048,7 +1056,7 @@ index b4a340a..ac96659 100644
    const connections = {};
    for (const perk of Object.values(perks)) {
 diff --git a/src/core/secret-formula/tabs.js b/src/core/secret-formula/tabs.js
-index 376688d..a13a3c4 100644
+index 376688d..c5817cb 100644
 --- a/src/core/secret-formula/tabs.js
 +++ b/src/core/secret-formula/tabs.js
 @@ -69,6 +69,15 @@ export const tabs = [
@@ -1092,7 +1100,7 @@ index 376688d..a13a3c4 100644
        }
      ]
    },
-@@ -496,5 +523,24 @@ export const tabs = [
+@@ -496,5 +523,40 @@ export const tabs = [
          hidable: true
        }
      ]
@@ -1112,6 +1120,22 @@ index 376688d..a13a3c4 100644
 +        symbol: "<i class='fas fa-tree'></i>",
 +        component: "ModTreeTab",
 +        id: 0,
++        hidable: true
++      },
++      {
++        key: "upgrades",
++        name: "나무 업그레이드",
++        symbol: "<i class='fas fa-arrow-up'></i>",
++        component: "ModTreeUpgradesTab",
++        id: 1,
++        hidable: true
++      },
++      {
++        key: "quests",
++        name: "나무 도전과제",
++        symbol: "<i class='fas fa-seedling'></i>",
++        component: "ModTreeQuestsTab",
++        id: 2,
 +        hidable: true
 +      }
 +    ]

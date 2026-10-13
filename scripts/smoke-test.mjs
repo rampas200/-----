@@ -553,6 +553,50 @@ try {
     treeAfter.level === treeBefore.level && treeAfter.level >= 1 && treeAfter.points === treeBefore.points,
     JSON.stringify({ eternityReset, treeBefore, treeAfter }));
 
+  // 나무 업그레이드: 반물질로 "비료"(성장 ×1.2)를 탭해서 사기
+  await page.evaluate(() => {
+    Currency.antimatter.bumpTo(new Decimal(1e45));
+    Tab.tree.upgrades.show(true);
+  });
+  await wait(1200);
+  const upgradeBefore = await page.evaluate(() => ({
+    mult: ModTree.upgradeMultiplier, am: Currency.antimatter.value.log10(), cards: document.querySelectorAll(".c-ad-mod-tree-upgrade").length,
+  }));
+  await page.locator(".c-ad-mod-tree-upgrade").first().locator("button").tap();
+  await wait(600);
+  const upgradeAfter = await page.evaluate(() => ({
+    bought: ModTree.isUpgradeBought(1), mult: ModTree.upgradeMultiplier, am: Currency.antimatter.value.log10(),
+    text: document.querySelector(".c-ad-mod-tree-upgrades")?.innerText ?? "",
+  }));
+  await page.screenshot({ path: `${SHOTS}/13-tree-upgrades.png`, fullPage: true });
+  check("나무 업그레이드 15개, 탭으로 구매 (비료: 성장 ×1.2)",
+    upgradeBefore.cards === 15 && upgradeAfter.bought && Math.abs(upgradeAfter.mult / upgradeBefore.mult - 1.2) < 1e-9 &&
+    upgradeAfter.text.includes("구매함"),
+    JSON.stringify({ upgradeBefore, upgradeAfter: { ...upgradeAfter, text: undefined } }));
+
+  // 나무 도전과제: 레벨 1(새싹)은 이미 완료, 물 주기 10번(정원사)을 채우면 다음 틱에 완료되고 성장 속도가 오른다
+  const quests = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const before = { sprout: ModTree.isQuestDone(1), gardener: ModTree.isQuestDone(6), mult: ModTree.questMultiplier };
+    player.adMod.tree.waterCount = 10;
+    await sleep(600);
+    Tab.tree.quests.show(true);
+    await sleep(800);
+    return {
+      before,
+      gardener: ModTree.isQuestDone(6), mult: ModTree.questMultiplier,
+      cards: document.querySelectorAll(".c-ad-mod-tree-quest").length,
+      doneCards: document.querySelectorAll(".c-ad-mod-tree-quest--done").length,
+      done: ModTree.doneQuestCount,
+    };
+  });
+  const questToast = await text();
+  await page.screenshot({ path: `${SHOTS}/14-tree-quests.png`, fullPage: true });
+  check("나무 도전과제 20개 (새싹 완료, 정원사 달성 → 성장 +5%)",
+    quests.before.sprout && !quests.before.gardener && quests.gardener && quests.cards === 20 &&
+    quests.doneCards === quests.done && Math.abs(quests.mult - quests.before.mult - 0.05) < 1e-9 &&
+    questToast.includes("나무 도전과제 완료: 정원사"), JSON.stringify(quests));
+
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {
   check("테스트 실행", false, error.stack);
