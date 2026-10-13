@@ -16,6 +16,7 @@
 | 모드 업그레이드 효과 | 아래 [모드 업그레이드](#모드-업그레이드) 참고. 꺼도 해금 기록은 남습니다. |
 | 모드 시간 연구 | 아래 [모드 시간 연구](#모드-시간-연구) 참고. 끄면 트리에서 숨고 살 수 없습니다. |
 | 모드 퍽 | 아래 [모드 퍽](#모드-퍽) 참고. 끄면 효과가 멈추고 살 수 없습니다 (이미 산 퍽은 남음). |
+| 반물질 나무 | 아래 [반물질 나무](#반물질-나무) 참고. 끄면 탭이 숨고 자라지 않으며 효과도 멈춥니다 (나무 상태는 남음). |
 | 설정 초기화 | 모드 설정을 기본값으로 되돌립니다. |
 
 - 모드 설정은 세이브 파일이 아니라 브라우저 `localStorage`(`ADModSettings` 키)에 따로 저장합니다.
@@ -144,6 +145,33 @@
 - 모드를 지운 원본 게임에 세이브를 불러오면 원본 게임이 알 수 없는 퍽을 발견하고 퍽을 리셋해 포인트를 돌려줍니다.
 - 데이터 위치: `overlay/src/core/secret-formula/reality/mod-perks.js`
 
+## 반물질 나무
+
+새 탭 **반물질 나무** 에서 게임 전체에 걸쳐 **아주 천천히** 자라는 나무를 키웁니다.
+
+- **성장**: 실제 시간 1초마다 성장도가 쌓입니다. 무한·영원·현실 **어떤 리셋에도 초기화되지 않고**, 게임을 꺼 둔 동안에도 자랍니다.
+  모드 게임 속도 배율은 적용되지 않습니다 (속도를 올려도 나무는 그대로).
+- **레벨**: 다음 레벨 요구량은 100 성장도에서 시작해 레벨마다 ×1.1. 기본 속도로 레벨 20까지 약 1.6시간, 50까지 약 32시간, 100까지 약 159일.
+  레벨 1마다 모든 반물질 차원 ×1.05.
+- **성장 속도**: 진행 단계(첫 무한, 무한 깨기, 첫 영원, 시간 팽창, 첫 현실, 천체)마다 +25%, 레벨 50·100 열매가 ×1.5·×2.
+- **물 주기**: 1분 동안 성장 ×2, 10분마다 한 번 (실제 시간).
+- **양분과 가지**: 레벨 1마다 양분 1개. 다섯 가지에 심습니다. **가지치기**로 언제든 모두 돌려받아 다시 심을 수 있습니다.
+
+  | 가지 | 열리는 때 | 양분 1개당 |
+  | --- | --- | --- |
+  | 반물질 | 처음부터 | 모든 반물질 차원 ×1.1 |
+  | 무한 | 첫 무한 후 | IP ×1.05 |
+  | 영원 | 첫 영원 후 | EP ×1.03 |
+  | 팽창 | 시간 팽창 해금 후 | 팽창 시간 ×1.03 |
+  | 현실 | 첫 현실 후 | 현실 기계 +2% |
+
+- **열매 (이정표)**: 레벨 5 시작 반물질 ×10, 10 10개 구매 배율 +0.05, 15 무한 횟수 ×2, 20 틱스피드 ×2, 25 영원 횟수 ×2,
+  30 무한 차원 ×10, 35 시간 차원 ×10, 40 타키온 입자 ×1.2, 45 글리프 레벨 +3, 50 나무 성장 ×1.5, 60 블랙홀 위력 +5%,
+  75 현실 기계 ×1.5, 100 나무 성장 ×2.
+- 나무 그림은 레벨에 따라 줄기와 수관이 커지고, 양분을 심은 가지가 색깔별로 뻗고, 받은 열매가 매달립니다.
+- 나무 상태는 세이브의 `adMod.tree` 에 저장됩니다. 하드 리셋하면 초기화됩니다. 스피드런 중에는 자라지 않습니다.
+- 데이터 위치: `overlay/src/core/secret-formula/mod-tree.js`
+
 ## 휴대폰으로 플레이하기
 
 푸시할 때마다 GitHub Actions(`.github/workflows/build-game.yml`)가 모드를 적용해 게임을 빌드합니다.
@@ -152,7 +180,8 @@
 탭으로 여는 업적 툴팁, 챌린지 상자, 모드 업그레이드 자동 해금과 알림, 무한 횟수 자동 획득,
 새로고침 후 해금 유지, Mod Upgrades 탭, 모드 시간 연구(구매 순서, 실제 효과, Shift+클릭, 내보내기/리스펙/가져오기,
 트리 화면 표시, 끄기/켜기, 시간 팽창 갈래, 업적 자동 해금), 모드 퍽(구매, 효과, 끄기/켜기, 터치 두 번 탭 구매),
-실제 터치로 현실 글리프 고르기와 현실 진행. 하나라도 실패하면 배포하지 않습니다.
+실제 터치로 현실 글리프 고르기와 현실 진행, 반물질 나무(실제 시간 성장, 레벨업, 가지, 물 주기, 리셋 후 유지).
+하나라도 실패하면 배포하지 않습니다.
 스크린샷은 Actions 실행 결과의 `smoke-screenshots` 에 올라갑니다.
 저장소가 **공개(public)** 일 때는 빌드 결과를 `gh-pages` 브랜치에 올려 웹사이트로 띄웁니다.
 무료 GitHub 계정은 비공개 저장소에서 GitHub Pages를 쓸 수 없어서, 비공개일 때는 빌드만 합니다.
@@ -206,6 +235,9 @@ overlay/               원본에 새로 추가하는 파일
   src/core/mod-perks.js                              모드 퍽 상태 (ModPerks 전역 객체)
   src/core/secret-formula/reality/mod-perks.js       모드 퍽 36개 데이터와 자동 배치
   src/components/tabs/perks/ModPerkInfo.vue          퍽 탭의 퍽 정보 칸 (터치 두 번 탭 구매)
+  src/core/mod-tree.js                               반물질 나무 성장/레벨/양분/물 주기 (ModTree 전역 객체)
+  src/core/secret-formula/mod-tree.js                반물질 나무 수치, 가지, 열매 데이터
+  src/components/tabs/mod-tree/ModTreeTab.vue        반물질 나무 탭 화면 (나무 그림 포함)
   src/core/secret-formula/mod-news.js                한국어 뉴스
   src/components/ModBonusLine.vue                    툴팁/챌린지 상자의 "모드 보너스" 줄
   src/components/tabs/mod-rewards/ModRewardsTab.vue  Achievements → Mod Bonuses 탭 화면
@@ -222,12 +254,12 @@ scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모
 
 | 파일 | 변경 내용 |
 | --- | --- |
-| `src/game.js` | 게임 속도 배율, 무한 횟수/EP 보너스, 무한/영원 횟수·IP·EP 자동 획득, TT 생성, 업적 자동 해금 타이머 |
+| `src/game.js` | 게임 속도 배율, 무한 횟수/EP 보너스, 무한/영원 횟수·IP·EP 자동 획득, TT 생성, 업적 자동 해금 타이머, 반물질 나무 성장 |
 | `src/core/dimensions/antimatter-dimension.js` | 생산 배율, 모든/특정 차원 보너스, 10개 구매 배율 보너스 |
 | `src/core/tickspeed.js` | 틱스피드, 갤럭시 효과 보너스, 레플리칸티 갤럭시 효과, 추가 타키온 은하 |
 | `src/core/dimboost.js`, `src/core/galaxy.js` | 차원 부스트 배율, 부스트/갤럭시 요구량 보너스, 먼 갤럭시 비용 증가 지연 |
 | `src/core/currency.js`, `src/core/sacrifice.js` | 시작 반물질/IP/EP (모드 퍽 포함), 영원 시작 IP, 차원 희생 보너스 |
-| `src/core/player.js` | 세이브에 모드 업그레이드 해금 상태(`adMod.upgradeBits`, `adMod.upgradeBitsExtra`)와 업적 자동 해금 타이머(`adMod.achTimer`) 추가 |
+| `src/core/player.js` | 세이브에 모드 업그레이드 해금 상태(`adMod.upgradeBits`, `adMod.upgradeBitsExtra`), 업적 자동 해금 타이머(`adMod.achTimer`), 반물질 나무(`adMod.tree`) 추가 |
 | `src/core/infinity-upgrades.js`, `src/core/replicanti.js` | IP, 레플리칸티 속도 보너스, 레플리칸티 갤럭시 최대치 |
 | `src/core/dimensions/infinity-dimension.js`, `src/core/dimensions/time-dimension.js` | 무한/시간 차원 보너스, 무한 차원별 배율, 무한 파워 변환 지수 |
 | `src/core/secret-formula/eternity/time-studies/normal-time-studies.js` | 시간 연구 데이터베이스에 모드 연구 53개 추가 |
@@ -241,8 +273,8 @@ scripts/smoke-test.mjs 빌드된 게임을 휴대폰 화면 크기로 열어 모
 | `src/core/machines.js`, `src/core/glyphs/auto-glyph-processor.js`, `src/core/black-hole.js` | 현실 기계, 글리프 레벨, 블랙홀 보너스 |
 | 업적/챌린지 화면 컴포넌트 5개 | 툴팁과 챌린지 상자에 "모드 보너스" 줄 추가 |
 | `src/core/secret-formula/news.js` | 한국어 뉴스 목록 추가 |
-| `src/core/secret-formula/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses / Mod Upgrades 탭 추가 |
-| `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`, `ModTimeStudies`, `ModPerks`를 전역으로 노출 |
+| `src/core/secret-formula/tabs.js`, `src/core/tabs.js`, `src/components/tabs/index.js` | Options → Mod, Achievements → Mod Bonuses / Mod Upgrades 탭, 반물질 나무 탭 추가 |
+| `src/core/globals.js` | `ADMod`, `ModRewards`, `ModUpgrades`, `ModTimeStudies`, `ModPerks`, `ModTree`를 전역으로 노출 |
 | `public/index.html` | 모바일 화면 맞춤(viewport), 홈 화면 앱 설정 |
 | `src/components/GlyphComponent.vue`, `src/components/modals/prestige/RealityModal.vue` | 휴대폰에서 글리프 탭이 클릭으로 처리되도록 (현실 글리프 선택, 더블 탭 장착) |
 

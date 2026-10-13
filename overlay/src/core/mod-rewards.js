@@ -4,6 +4,7 @@
 //  - 모드 업그레이드: 조건을 달성하면 해금되는 일회성 업그레이드 (secret-formula/mod-upgrades.js)
 //  - 모드 시간 연구: 시간 연구 트리 아래의 5갈래 연구 (secret-formula/eternity/time-studies/mod-time-studies.js)
 //  - 모드 퍽: 현실 퍽 트리 끝에서 이어지는 퍽 (secret-formula/reality/mod-perks.js)
+//  - 반물질 나무: 게임 전체에 걸쳐 자라는 나무의 레벨, 가지, 열매 (secret-formula/mod-tree.js)
 // 여기서는
 //  1) 각 효과가 지금 켜져 있는지(업적 달성, 업그레이드 해금 등) 판단하고
 //  2) 같은 채널(예: 틱스피드)에 걸린 효과들을 곱하거나 더해서
@@ -13,6 +14,7 @@ import { DC } from "./constants";
 import { modPerkConfigs } from "./secret-formula/reality/mod-perks";
 import { modRewards } from "./secret-formula/mod-rewards";
 import { modTimeStudies } from "./secret-formula/eternity/time-studies/mod-time-studies";
+import { modTreeRewards } from "./secret-formula/mod-tree";
 import { modUpgrades } from "./secret-formula/mod-upgrades";
 
 // 종류(kind): decimal = Decimal 곱, number = 숫자 곱, sum = 숫자 합, max = Decimal 최댓값
@@ -110,6 +112,12 @@ export const MOD_REWARD_SOURCES = {
     isActive: id => Perks.find(id).canBeApplied,
     title: id => `퍽 ${Perks.find(id).label}`,
   },
+  tree: {
+    label: "반물질 나무",
+    isEnabled: () => ADMod.modTree,
+    isActive: id => ModTree.isRewardActive(id),
+    title: id => ModTree.rewardTitle(id),
+  },
 };
 
 // 데이터를 { source, id, note, parts } 목록으로 펼치고, 채널별로 묶어 둔다
@@ -136,9 +144,11 @@ const studyRewardList = modTimeStudies.map(study => register("study", study.id, 
 const perkRewardList = Object.values(modPerkConfigs)
   .filter(config => config.parts !== undefined)
   .map(config => register("perk", config.id, config));
+// 반물질 나무의 효과 (레벨, 가지, 열매)
+const treeRewardList = modTreeRewards.map(entry => register("tree", entry.id, entry));
 
-const rewardIndex = new Map([...rewardList, ...upgradeRewardList, ...studyRewardList, ...perkRewardList]
-  .map(r => [r.key, r]));
+const rewardIndex = new Map([...rewardList, ...upgradeRewardList, ...studyRewardList, ...perkRewardList,
+  ...treeRewardList].map(r => [r.key, r]));
 
 function neutralValue(kind) {
   if (kind === "decimal") return DC.D1;
@@ -279,6 +289,7 @@ export const ModRewards = {
   upgradeList: upgradeRewardList,
   studyList: studyRewardList,
   perkList: perkRewardList,
+  treeList: treeRewardList,
 
   // 보너스 보상(업적/챌린지)이 켜져 있는지. 모드 업그레이드는 ADMod.modUpgrades로 따로 켜고 끈다.
   get isEnabled() {

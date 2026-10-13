@@ -108,14 +108,15 @@ index 2d87893..34be84c 100644
    </EternityChallengeBoxWrapper>
  </template>
 diff --git a/src/components/tabs/index.js b/src/components/tabs/index.js
-index a5c5b7b..fa98786 100644
+index a5c5b7b..b7d8fd3 100644
 --- a/src/components/tabs/index.js
 +++ b/src/components/tabs/index.js
-@@ -19,10 +19,13 @@ import InfinityChallengesTab from "./infinity-challenges/InfinityChallengesTab";
+@@ -19,10 +19,14 @@ import InfinityChallengesTab from "./infinity-challenges/InfinityChallengesTab";
  import InfinityDimensionsTab from "./infinity-dimensions/InfinityDimensionsTab";
  import InfinityUpgradesTab from "./infinity-upgrades/InfinityUpgradesTab";
  import LaitelaTab from "./celestial-laitela/LaitelaTab";
 +import ModRewardsTab from "./mod-rewards/ModRewardsTab";
++import ModTreeTab from "./mod-tree/ModTreeTab";
 +import ModUpgradesTab from "./mod-upgrades/ModUpgradesTab";
  import MultiplierBreakdownTab from "./statistics/MultiplierBreakdownTab";
  import NormalAchievementsTab from "./normal-achievements/NormalAchievementsTab";
@@ -125,7 +126,7 @@ index a5c5b7b..fa98786 100644
  import OptionsSavingTab from "./options-saving/OptionsSavingTab";
  import OptionsVisualTab from "./options-visual/OptionsVisualTab";
  import PastPrestigeRunsTab from "./past-prestige-runs/PastPrestigeRunsTab";
-@@ -49,6 +52,7 @@ const TabComponents = {
+@@ -49,6 +53,7 @@ const TabComponents = {
    OptionsSavingTab,
    OptionsVisualTab,
    OptionsGameplayTab,
@@ -133,12 +134,13 @@ index a5c5b7b..fa98786 100644
    StatisticsTab,
    ChallengeRecordsTab,
    PastPrestigeRunsTab,
-@@ -57,6 +61,8 @@ const TabComponents = {
+@@ -57,6 +62,9 @@ const TabComponents = {
    PreviousSpeedrunTab,
    NormalAchievementsTab,
    SecretAchievementTab,
 +  ModRewardsTab,
 +  ModUpgradesTab,
++  ModTreeTab,
    TeresaTab,
    EffarigTab,
    EnslavedTab,
@@ -795,10 +797,10 @@ index 3a7d5a8..50d18f4 100644
  
    static get type() {
 diff --git a/src/core/globals.js b/src/core/globals.js
-index 014784d..60030da 100644
+index 014784d..4ce88ec 100644
 --- a/src/core/globals.js
 +++ b/src/core/globals.js
-@@ -88,5 +88,10 @@ export * from "./shop";
+@@ -88,5 +88,11 @@ export * from "./shop";
  export * from "./tabs";
  export * from "./tab-notifications";
  export * from "./speedrun";
@@ -807,6 +809,7 @@ index 014784d..60030da 100644
 +export * from "./mod-upgrades";
 +export * from "./mod-time-studies";
 +export * from "./mod-perks";
++export * from "./mod-tree";
  
  export * from "./automator/script-templates";
 diff --git a/src/core/glyphs/auto-glyph-processor.js b/src/core/glyphs/auto-glyph-processor.js
@@ -881,10 +884,10 @@ index d1e5ac4..8beea19 100644
  
    initializeConnections() {
 diff --git a/src/core/player.js b/src/core/player.js
-index eac84b0..f37c13b 100644
+index eac84b0..4bdff95 100644
 --- a/src/core/player.js
 +++ b/src/core/player.js
-@@ -237,6 +237,14 @@ window.player = {
+@@ -237,6 +237,23 @@ window.player = {
      Eternity: true,
      Infinity: true
    },
@@ -893,6 +896,15 @@ index eac84b0..f37c13b 100644
 +    // 모드 업그레이드 해금 상태 (id 0~31은 upgradeBits, 32 이상은 upgradeBitsExtra에 32개씩)
 +    upgradeBits: 0,
 +    upgradeBitsExtra: [],
++    // 반물질 나무 (어떤 리셋에도 초기화되지 않는다)
++    tree: {
++      growth: 0,
++      level: 0,
++      totalGrowth: 0,
++      branches: [0, 0, 0, 0, 0],
++      waterUntil: 0,
++      waterReadyAt: 0,
++    },
 +    // 모드 업적 자동 해금 연구의 타이머 (ms)
 +    achTimer: 0,
 +  },
@@ -1036,7 +1048,7 @@ index b4a340a..ac96659 100644
    const connections = {};
    for (const perk of Object.values(perks)) {
 diff --git a/src/core/secret-formula/tabs.js b/src/core/secret-formula/tabs.js
-index 376688d..c05580b 100644
+index 376688d..a13a3c4 100644
 --- a/src/core/secret-formula/tabs.js
 +++ b/src/core/secret-formula/tabs.js
 @@ -69,6 +69,15 @@ export const tabs = [
@@ -1080,6 +1092,57 @@ index 376688d..c05580b 100644
        }
      ]
    },
+@@ -496,5 +523,24 @@ export const tabs = [
+         hidable: true
+       }
+     ]
++  },
++  // [AD Mod] 반물질 나무 (게임 전체에 걸쳐 천천히 자라는 나무)
++  {
++    key: "tree",
++    name: "반물질 나무",
++    hideAt: 1.5,
++    condition: () => ADMod.modTree,
++    id: 11,
++    hidable: true,
++    subtabs: [
++      {
++        key: "tree",
++        name: "반물질 나무",
++        symbol: "<i class='fas fa-tree'></i>",
++        component: "ModTreeTab",
++        id: 0,
++        hidable: true
++      }
++    ]
+   }
+ ];
+diff --git a/src/core/tabs.js b/src/core/tabs.js
+index 7e8b144..94340f7 100644
+--- a/src/core/tabs.js
++++ b/src/core/tabs.js
+@@ -206,7 +206,9 @@ export const Tabs = (function() {
+       Tab.eternity,
+       Tab.reality,
+       Tab.celestials,
+-      Tab.shop
++      Tab.shop,
++      // [AD Mod] 반물질 나무
++      Tab.tree
+     ],
+     newUI: [
+       Tab.dimensions,
+@@ -219,7 +221,9 @@ export const Tabs = (function() {
+       Tab.achievements,
+       Tab.statistics,
+       Tab.options,
+-      Tab.shop
++      Tab.shop,
++      // [AD Mod] 반물질 나무
++      Tab.tree
+     ],
+     get currentUIFormat() {
+       return ui.view.newUI ? this.newUI : this.oldUI;
 diff --git a/src/core/tickspeed.js b/src/core/tickspeed.js
 index d3ae997..76735d0 100644
 --- a/src/core/tickspeed.js
@@ -1166,7 +1229,7 @@ index 5021a22..d12ea36 100644
    }
  
 diff --git a/src/game.js b/src/game.js
-index 41a77d0..7a5d5b9 100644
+index 41a77d0..04fa380 100644
 --- a/src/game.js
 +++ b/src/game.js
 @@ -132,7 +132,9 @@ function totalEPMult() {
@@ -1215,16 +1278,18 @@ index 41a77d0..7a5d5b9 100644
      GameIntervals.gameLoop.stop();
      simulateTime(realDiff / 1000, true);
      realTimeMechanics(realDiff);
-@@ -616,6 +624,8 @@ export function gameLoop(passDiff, options = {}) {
+@@ -616,6 +624,10 @@ export function gameLoop(passDiff, options = {}) {
  
    laitelaRealityTick(realDiff);
    Achievements.autoAchieveUpdate(diff);
 +  // [AD Mod] 모드 시간 연구: 업적 자동 해금
 +  ModTimeStudies.achievementTick(diff);
++  // [AD Mod] 반물질 나무: 실제 시간으로 자란다 (모드 게임 속도는 적용하지 않음)
++  ModTree.tick(unscaledRealDiff);
    V.checkForUnlocks();
    AutomatorBackend.update(realDiff);
    Pelle.gameLoop(realDiff);
-@@ -681,6 +691,15 @@ function passivePrestigeGen() {
+@@ -681,6 +693,15 @@ function passivePrestigeGen() {
      player.reality.partEternitied = player.reality.partEternitied.sub(player.reality.partEternitied.floor());
    }
  
@@ -1240,7 +1305,7 @@ index 41a77d0..7a5d5b9 100644
    if (!EternityChallenge(4).isRunning) {
      let infGen = DC.D0;
      if (BreakInfinityUpgrade.infinitiedGen.isBought) {
-@@ -696,6 +715,9 @@ function passivePrestigeGen() {
+@@ -696,6 +717,9 @@ function passivePrestigeGen() {
      if (RealityUpgrade(11).isBought) {
        infGen = infGen.plus(RealityUpgrade(11).effectValue.times(Time.deltaTime));
      }
@@ -1250,7 +1315,7 @@ index 41a77d0..7a5d5b9 100644
      if (EffarigUnlock.eternity.isUnlocked) {
        // We consider half of the eternities we gained above this tick
        // to have been gained before the infinities, and thus not to
-@@ -825,6 +847,16 @@ function applyAutoprestige(diff) {
+@@ -825,6 +849,16 @@ function applyAutoprestige(diff) {
    if (PelleRifts.chaos.milestones[2].canBeApplied) {
      Currency.eternityPoints.add(gainedEternityPoints().times(DC.D0_1).times(diff / 1000));
    }
@@ -1267,7 +1332,7 @@ index 41a77d0..7a5d5b9 100644
  }
  
  function updateImaginaryMachines(diff) {
-@@ -873,7 +905,8 @@ export function getTTPerSecond() {
+@@ -873,7 +907,8 @@ export function getTTPerSecond() {
      finalTT = finalTT.pow(SingularityMilestone.theoremPowerFromSingularities.effectOrDefault(1));
    }
  

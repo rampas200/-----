@@ -22,6 +22,7 @@ export default {
       modUpgrades: true,
       modStudies: true,
       modPerks: true,
+      modTree: true,
       isSuspended: false,
     };
   },
@@ -70,6 +71,9 @@ export default {
     modPerks(newValue) {
       ADMod.modPerks = newValue;
     },
+    modTree(newValue) {
+      ADMod.modTree = newValue;
+    },
   },
   methods: {
     update() {
@@ -80,6 +84,7 @@ export default {
       this.modUpgrades = ADMod.modUpgrades;
       this.modStudies = ADMod.modStudies;
       this.modPerks = ADMod.modPerks;
+      this.modTree = ADMod.modTree;
       this.isSuspended = ADMod.isSuspended;
     },
     // 콘솔에서 슬라이더에 없는 값(예: 7)을 넣었을 때도 가장 가까운 칸을 보여준다
@@ -111,7 +116,7 @@ export default {
     <div class="c-ad-mod-header">
       <b>{{ modVersion }}</b> - 안티매터 디멘션 모드 설정
       <div v-if="isSuspended">
-        스피드런 중에는 게임 속도, 생산 배율, 보너스 보상, 모드 업그레이드, 모드 시간 연구, 모드 퍽이 적용되지 않습니다.
+        스피드런 중에는 게임 속도, 생산 배율, 보너스 보상, 모드 업그레이드, 모드 시간 연구, 모드 퍽, 반물질 나무가 적용되지 않습니다.
       </div>
     </div>
     <div class="l-options-grid">
@@ -154,6 +159,13 @@ export default {
           v-model="modPerks"
           class="o-primary-btn--option l-options-grid__button"
           label="모드 퍽:"
+          on="켜짐"
+          off="꺼짐"
+        />
+        <PrimaryToggleButton
+          v-model="modTree"
+          class="o-primary-btn--option l-options-grid__button"
+          label="반물질 나무:"
           on="켜짐"
           off="꺼짐"
         />

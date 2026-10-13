@@ -22,6 +22,8 @@ const DEFAULT_SETTINGS = {
   modStudies: true,
   // 모드 퍽 구매/효과 여부. 꺼도 이미 산 퍽은 현실 리스펙할 때까지 남는다.
   modPerks: true,
+  // 반물질 나무 성장/효과/탭 표시 여부. 꺼도 나무 상태는 세이브에 남는다.
+  modTree: true,
 };
 
 export const AD_MOD_LIMITS = {
@@ -56,9 +58,9 @@ function saveSettings() {
 
 export const ADMod = {
   name: "AD Mod",
-  version: "0.5.0",
+  version: "0.6.0",
 
-  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 모드 기능(속도/생산 배율, 보너스 보상, 업그레이드, 연구, 퍽)을 끈다.
+  // 스피드런 기록이 오염되지 않도록 스피드런 중에는 모드 기능(속도/생산 배율, 보너스 보상, 업그레이드, 연구, 퍽, 나무)을 끈다.
   get isSuspended() {
     return player.speedrun.isActive;
   },
@@ -124,6 +126,15 @@ export const ADMod = {
     ModRewards.invalidate();
     GameCache.achievementPeriod.invalidate();
     GameCache.buyablePerks.invalidate();
+  },
+
+  get modTree() {
+    return Boolean(settings.modTree);
+  },
+  set modTree(value) {
+    settings.modTree = Boolean(value);
+    saveSettings();
+    ModRewards.invalidate();
   },
 
   // 게임 루프에서 실제로 쓰는 값들

@@ -472,6 +472,87 @@ try {
     highBefore.up61 && highAfter.up61 && highAfter.up1 && (highAfter.extra[0] & (1 << 29)) !== 0,
     JSON.stringify({ highBefore, highAfter }));
 
+  // ---- 반물질 나무 ----
+  // 실제 시간으로 자라고 (모드 게임 속도 무시), 레벨업, 효과, 양분, 물 주기, 리셋·새로고침 후 유지
+  const treeGrowth = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const before = ModTree.totalGrowth;
+    ADMod.gameSpeed = 100;
+    await sleep(2000);
+    ADMod.gameSpeed = 1;
+    return { available: Tab.tree.isAvailable, rate: ModTree.growthPerSecond, gained: ModTree.totalGrowth - before };
+  });
+  check("반물질 나무: 실제 시간으로 성장 (게임 속도 ×100 무시)",
+    treeGrowth.available && treeGrowth.gained > 0.5 * treeGrowth.rate && treeGrowth.gained < 5 * treeGrowth.rate,
+    JSON.stringify(treeGrowth));
+
+  const treeLevel = await page.evaluate(async () => {
+    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const treeRatio = () => {
+      ADMod.modTree = false;
+      const off = ModRewards.decimal("adMult");
+      ADMod.modTree = true;
+      return ModRewards.decimal("adMult").div(off).log10();
+    };
+    const levelBefore = ModTree.level;
+    player.adMod.tree.growth = ModTree.levelCost() - 0.01;
+    await sleep(800);
+    const result = { levelBefore, levelAfter: ModTree.level, ratioLevel: treeRatio() };
+    ModTree.invest(1, 1);
+    await sleep(100);
+    result.ratioBranch = treeRatio();
+    result.points = ModTree.branchPoints(1);
+    return result;
+  });
+  const treeToast = await text();
+  check("반물질 나무 레벨업과 효과 (레벨당 ×1.05, 반물질 가지 ×1.1)",
+    treeLevel.levelAfter === treeLevel.levelBefore + 1 && treeToast.includes("반물질 나무가 레벨") &&
+    Math.abs(treeLevel.ratioLevel - treeLevel.levelAfter * Math.log10(1.05)) < 1e-6 &&
+    Math.abs(treeLevel.ratioBranch - treeLevel.ratioLevel - Math.log10(1.1)) < 1e-6 && treeLevel.points === 1,
+    JSON.stringify(treeLevel));
+
+  // 탭 화면: 가지치기 → 반물질 가지 "+1" 탭, 물 주기 탭
+  await page.evaluate(() => {
+    Modal.hideAll();
+    ModTree.respec();
+    Tab.tree.show(true);
+  });
+  await wait(1200);
+  await page.locator(".c-ad-mod-tree__branch").first().locator("button", { hasText: "+1" }).tap();
+  await page.locator(".c-ad-mod-tree__water").tap();
+  await wait(600);
+  const treeTab = await page.evaluate(() => ({
+    text: document.querySelector(".c-ad-mod-tree")?.innerText ?? "",
+    svg: document.querySelectorAll(".c-ad-mod-tree__picture line, .c-ad-mod-tree__picture circle").length,
+    points: ModTree.branchPoints(1),
+    watered: ModTree.isWatered,
+    cooldown: ModTree.waterCooldown,
+  }));
+  await page.screenshot({ path: `${SHOTS}/12-antimatter-tree.png`, fullPage: true });
+  check("반물질 나무 탭 (나무 그림, 가지 +1 탭, 물 주기 탭)",
+    treeTab.text.includes("반물질 나무는") && treeTab.text.includes("열매") && treeTab.svg >= 3 &&
+    treeTab.points === 1 && treeTab.watered && treeTab.cooldown > 0, JSON.stringify({ ...treeTab, text: undefined }));
+
+  // 영원 리셋과 새로고침 뒤에도 나무가 그대로
+  const treeBefore = await page.evaluate(() => ({ level: ModTree.level, points: ModTree.branchPoints(1) }));
+  const eternityReset = await page.evaluate(() => {
+    let done = false;
+    try {
+      if (typeof eternity === "function") done = eternity(true) !== false;
+    } catch (error) {
+      done = `오류: ${error.message}`;
+    }
+    GameStorage.save(true);
+    return done;
+  });
+  await page.reload({ waitUntil: "load" });
+  await page.waitForFunction(() => window.GameUI?.initialized === true, null, { timeout: 60000 });
+  await wait(1500);
+  const treeAfter = await page.evaluate(() => ({ level: ModTree.level, points: ModTree.branchPoints(1) }));
+  check("반물질 나무는 영원 리셋·새로고침 후에도 유지",
+    treeAfter.level === treeBefore.level && treeAfter.level >= 1 && treeAfter.points === treeBefore.points,
+    JSON.stringify({ eternityReset, treeBefore, treeAfter }));
+
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {
   check("테스트 실행", false, error.stack);
