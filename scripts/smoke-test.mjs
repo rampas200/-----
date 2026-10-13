@@ -156,7 +156,7 @@ try {
 
   // ---- 모드 업그레이드 ----
   const counts = await page.evaluate(() => ({ list: ModUpgrades.list.length, effects: ModRewards.upgradeList.length }));
-  check("모드 업그레이드 30개 로드", counts.list === 30 && counts.effects === 30, JSON.stringify(counts));
+  check("모드 업그레이드 65개 로드", counts.list === 65 && counts.effects === 65, JSON.stringify(counts));
 
   // 1번 "압축된 출발": 차원 부스트 없이 반물질 1e20 -> 조건을 맞추면 다음 틱에 해금
   const up1 = await page.evaluate(async () => {
@@ -200,9 +200,11 @@ try {
   const cards = await page.locator(".c-ad-mod-upgrade").count();
   const unlockedCards = await page.locator(".c-ad-mod-upgrade--unlocked").count();
   const upgradesTab = await text();
-  check("Achievements → Mod Upgrades 탭 (카드 30장, 해금 2장)",
-    cards === 30 && unlockedCards === 2 && /해금:\s*2\s*\/\s*30/u.test(upgradesTab),
-    `cards ${cards}, unlocked ${unlockedCards}`);
+  const unlockedNow = await page.evaluate(() => ModUpgrades.unlockedCount);
+  check("Achievements → Mod Upgrades 탭 (카드 65장, 7단계)",
+    cards === 65 && unlockedCards === unlockedNow && unlockedNow >= 2 &&
+    new RegExp(`해금:\\s*${unlockedNow}\\s*/\\s*65`, "u").test(upgradesTab) && upgradesTab.includes("7단계 · 현실"),
+    `cards ${cards}, unlocked ${unlockedCards}/${unlockedNow}`);
   await page.screenshot({ path: `${SHOTS}/6-mod-upgrades.png`, fullPage: true });
 
   // ---- 모드 시간 연구 ----
@@ -456,6 +458,19 @@ try {
   check("확인을 탭하면 고른 글리프를 받고 현실로 넘어감",
     afterReality.realities === realitySetup.realities + 1 && afterReality.glyphCount === realitySetup.glyphCount + 1 &&
     afterReality.newestType === realitySetup.types[1], JSON.stringify(afterReality));
+
+  // id 32 이상 모드 업그레이드 (61번 "첫 현실")는 upgradeBitsExtra에 저장되고 새로고침 후에도 남는다
+  const highBefore = await page.evaluate(() => ({ up61: ModUpgrades.isUnlocked(61), extra: player.adMod.upgradeBitsExtra }));
+  await page.evaluate(() => GameStorage.save(true));
+  await page.reload({ waitUntil: "load" });
+  await page.waitForFunction(() => window.GameUI?.initialized === true, null, { timeout: 60000 });
+  await wait(1500);
+  const highAfter = await page.evaluate(() => ({
+    up61: ModUpgrades.isUnlocked(61), up1: ModUpgrades.isUnlocked(1), extra: player.adMod.upgradeBitsExtra,
+  }));
+  check("id 32 이상 업그레이드 저장 (61번 첫 현실, 새로고침 후 유지)",
+    highBefore.up61 && highAfter.up61 && highAfter.up1 && (highAfter.extra[0] & (1 << 29)) !== 0,
+    JSON.stringify({ highBefore, highAfter }));
 
   check("페이지 오류 없음", pageErrors.length === 0, pageErrors.join(" | "));
 } catch (error) {

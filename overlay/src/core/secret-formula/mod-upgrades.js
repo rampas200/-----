@@ -3,7 +3,7 @@
 // 차이점: 구매하지 않는다. 조건을 달성하는 순간 영구히 해금된다.
 //
 // 항목 구성
-//  - row: 단계 (1 반물질, 2 무한 초반, 3 무한 후반, 4 영원 초반, 5 영원 후반, 6 시간 팽창)
+//  - row: 단계 (1 반물질, 2 무한 초반, 3 무한 후반, 4 영원 초반, 5 영원 후반, 6 시간 팽창, 7 현실)
 //  - requirement(): 조건 설명 (진행 상황 포함)
 //  - checkEvent: 조건을 검사하는 시점. *_BEFORE 이벤트는 리셋 직전이라 이번 판의 상태(갤럭시 수, 시간 등)가 남아 있다.
 //  - checkRequirement(): 조건 달성 여부
@@ -17,6 +17,7 @@ const CRUNCH = "BIG_CRUNCH_BEFORE";
 const SACRIFICE = "SACRIFICE_RESET_BEFORE";
 const ETERNITY = "ETERNITY_RESET_BEFORE";
 const AFTER_ETERNITY = "ETERNITY_RESET_AFTER";
+const REALITY = "REALITY_RESET_BEFORE";
 
 const fixed = (channel, value) => ({ channel, value });
 const dyn = (channel, text, effect) => ({ channel, text, effect });
@@ -371,3 +372,151 @@ export const modUpgrades = [
     parts: [fixed("rmMult", 3), fixed("glyphLevel", 10)],
   },
 ];
+
+// ---- 추가 업그레이드 (31~65): 1~6단계에 5개씩, 그리고 7단계(현실) 5개 ----
+// [id, 단계, 이름, 설명, 조건 설명, 검사 시점, 조건, 효과 조각들, 실패 판정(선택)]
+const MORE_UPGRADES = [
+  // 1. 반물질
+  [31, 1, "부스트 수집가", "부스트를 쌓을수록 부스트가 강해진다",
+    () => `차원 부스트 ${formatInt(10)}회 (현재 ${formatInt(DimBoost.purchasedBoosts)})`,
+    TICK, () => DimBoost.purchasedBoosts >= 10, [fixed("dimBoostPower", 1.1)]],
+  [32, 1, "첫 갤럭시", "은하 하나가 길을 연다",
+    () => "반물질 갤럭시 1개 얻기",
+    TICK, () => player.galaxies >= 1, [fixed("galaxyDiscount", 3)]],
+  [33, 1, "틱스피드 수집가", "틱스피드를 산 만큼 시계가 빨라진다",
+    () => `틱스피드 업그레이드 ${formatInt(100)}회 구매 (현재 ${formatInt(player.totalTickBought)})`,
+    TICK, () => player.totalTickBought >= 100,
+    [dyn("tickspeed", "구매한 틱스피드 업그레이드 100개마다 틱스피드 ×1.1 (10000개까지)",
+      () => Decimal.pow(1.1, Math.min(player.totalTickBought, 10000) / 100))]],
+  [34, 1, "희생 없는 무한", "희생하지 않고 버텼으니, 희생이 더 값지다",
+    () => "차원 희생 없이 무한",
+    CRUNCH, () => player.requirementChecks.infinity.noSacrifice, [fixed("sacrificePower", 1.1)],
+    () => !player.requirementChecks.infinity.noSacrifice],
+  [35, 1, "반물질 부자", "넘치는 반물질이 다음 출발을 돕는다",
+    () => `반물질 ${format(1e300)} 도달`,
+    TICK, () => Currency.antimatter.gte(1e300), [fixed("startingAM", 1000)]],
+
+  // 2. 무한 초반
+  [36, 2, "업그레이드 완성", "16칸을 모두 채운 보람",
+    () => `무한 업그레이드 ${formatInt(16)}개 보유 (현재 ${formatInt(player.infinityUpgrades.size)})`,
+    TICK, () => player.infinityUpgrades.size >= 16, [fixed("ipMult", 2)]],
+  [37, 2, "무한 돌파", "한계를 깨뜨린 순간",
+    () => "무한 깨기(Break Infinity)",
+    TICK, () => player.break, [fixed("infinitiesMult", 2)]],
+  [38, 2, "챌린지 완주", "12개의 도전을 모두 이겨냈다",
+    () => `일반 챌린지 ${formatInt(12)}개 모두 완료 (현재 ${formatInt(completedNormalChallenges())})`,
+    TICK, () => completedNormalChallenges() >= 12, [fixed("adMult", 1e6)]],
+  [39, 2, "무한의 강", "무한이 강처럼 흐른다",
+    () => `총 무한 ${formatInt(10000)}회 (현재 ${format(Currency.infinitiesTotal.value, 2)})`,
+    TICK, () => Currency.infinitiesTotal.gte(10000), [fixed("passiveInfinities", 0.1)]],
+  [40, 2, "순간 무한", "눈 깜짝할 새 무한",
+    () => `${formatInt(1)}초 안에 무한`,
+    CRUNCH, () => player.records.thisInfinity.time < 1000, [fixed("infinitiesMult", 3)],
+    () => player.records.thisInfinity.time >= 1000],
+
+  // 3. 무한 후반
+  [41, 3, "무한 차원 완성", "8개의 무한 차원이 모두 깨어났다",
+    () => `무한 차원 ${formatInt(8)}개 모두 해금 (현재 ${formatInt(unlockedInfinityDimensions())})`,
+    TICK, () => unlockedInfinityDimensions() >= 8, [fixed("idMult", 1000)]],
+  [42, 3, "무한 챌린지 완주", "모든 무한 챌린지를 이겨냈다",
+    () => `무한 챌린지 ${formatInt(8)}개 모두 완료 (현재 ${formatInt(InfinityChallenges.completed.length)})`,
+    TICK, () => InfinityChallenges.completed.length >= 8, [fixed("idConversion", 0.1)]],
+  [43, 3, "레플리칸티 포화", "레플리칸티가 무한에 닿았다",
+    () => `레플리칸티 ${format(Number.MAX_VALUE, 2)} 보유`,
+    TICK, () => Replicanti.amount.gte(Number.MAX_VALUE), [fixed("replicantiGalaxyMax", 3)]],
+  [44, 3, "무한 파워 폭주", "무한 파워가 넘쳐흐른다",
+    () => `무한 파워 ${formatPostBreak("1e500")} 보유`,
+    TICK, () => Currency.infinityPower.exponent >= 500,
+    [dyn("idMult", "무한 파워의 자릿수 100개마다 무한 차원 ×2 (자릿수 10000개까지)",
+      () => Decimal.pow(2, Math.min(Currency.infinityPower.value.plus(1).log10(), 10000) / 100))]],
+  [45, 3, "IP 부자", "쌓인 IP가 더 많은 IP를 부른다",
+    () => `IP ${format(1e100)} 보유`,
+    TICK, () => Currency.infinityPoints.gte(1e100),
+    [dyn("ipMult", "IP의 자릿수 10개마다 IP +×1 (자릿수 1000개까지)",
+      () => 1 + Math.min(Currency.infinityPoints.value.plus(1).log10(), 1000) / 10)]],
+
+  // 4. 영원 초반
+  [46, 4, "첫 영원", "영원의 문이 열렸다",
+    () => "영원 1회",
+    TICK, () => Currency.eternities.gte(1), [fixed("eternitiesMult", 2)]],
+  [47, 4, "영원 업그레이드 수집", "영원 업그레이드를 모을수록 EP가 늘어난다",
+    () => `영원 업그레이드 ${formatInt(6)}개 보유 (현재 ${formatInt(player.eternityUpgrades.size)})`,
+    TICK, () => player.eternityUpgrades.size >= 6, [fixed("epMult", 3)]],
+  [48, 4, "시간 차원 완성", "8번째 시간 차원까지 열었다",
+    () => "8번째 시간 차원 해금",
+    TICK, () => TimeDimension(8).isUnlocked, [fixed("tdMult", 100)]],
+  [49, 4, "영원 연타", "영원을 순식간에 반복한다",
+    () => `${formatInt(10)}초 안에 영원`,
+    ETERNITY, () => player.records.thisEternity.time < 10000, [fixed("eternitiesMult", 3)],
+    () => player.records.thisEternity.time >= 10000],
+  [50, 4, "1번째만으로", "1번째 차원만 믿고 영원에 닿았다",
+    () => "1번째 반물질 차원만 사서 영원",
+    ETERNITY, () => player.requirementChecks.eternity.onlyAD1,
+    [dynAD([1], "영원 횟수의 제곱근만큼 1번째 반물질 차원 강화",
+      () => Currency.eternities.value.plus(1).pow(0.5))],
+    () => !player.requirementChecks.eternity.onlyAD1],
+
+  // 5. 영원 후반
+  [51, 5, "영원 챌린지 완주", "모든 영원 챌린지를 5번씩 이겨냈다",
+    () => `영원 챌린지 총 ${formatInt(60)}회 완료 (현재 ${formatInt(EternityChallenges.completions)})`,
+    TICK, () => EternityChallenges.completions >= 60, [fixed("ttPerSecond", 0.5)]],
+  [52, 5, "연구 박사", "공부할수록 영원이 깊어진다",
+    () => `시간 연구 ${formatInt(50)}개 동시 보유 (현재 ${formatInt(player.timestudy.studies.length)})`,
+    TICK, () => player.timestudy.studies.length >= 50,
+    [dyn("epMult", "보유한 시간 연구 1개당 EP ×1.1",
+      () => Math.pow(1.1, player.timestudy.studies.length))]],
+  [53, 5, "EP 폭주", "영원 포인트가 넘쳐 영원이 저절로 쌓인다",
+    () => `EP ${formatPostBreak("1e500")} 보유`,
+    TICK, () => Currency.eternityPoints.exponent >= 500, [fixed("passiveEternities", 0.1)]],
+  [54, 5, "레플리칸티 갤럭시 마스터", "복제된 은하가 더 강하게 빛난다",
+    () => `레플리칸티 갤럭시 ${formatInt(100)}개 (현재 ${formatInt(Replicanti.galaxies.total)})`,
+    TICK, () => Replicanti.galaxies.total >= 100, [fixed("replicantiGalaxyPower", 0.05)]],
+  [55, 5, "영원 백만", "백만 번의 영원이 시간을 두텁게 한다",
+    () => `영원 ${format(1e6)}회 (현재 ${format(Currency.eternities.value, 2)})`,
+    TICK, () => Currency.eternities.gte(1e6),
+    [dyn("tdMult", "영원 횟수의 자릿수 1개마다 시간 차원 ×2",
+      () => Decimal.pow(2, Currency.eternities.value.plus(1).log10()))]],
+
+  // 6. 시간 팽창
+  [56, 6, "팽창 업그레이드 수집", "팽창 업그레이드가 타키온을 끌어모은다",
+    () => `팽창 업그레이드 ${formatInt(3)}종 보유 (현재 ${formatInt(player.dilation.upgrades.size)})`,
+    TICK, () => player.dilation.upgrades.size >= 3, [fixed("tpMult", 1.5)]],
+  [57, 6, "타키온 은하단", "타키온 은하가 무리를 이룬다",
+    () => `타키온 은하 ${formatInt(50)}개 (현재 ${formatInt(player.dilation.totalTachyonGalaxies)})`,
+    TICK, () => player.dilation.totalTachyonGalaxies >= 50, [fixed("extraTachyonGalaxies", 3)]],
+  [58, 6, "팽창 시간 폭주", "팽창 시간이 넘쳐 팽창이 느슨해진다",
+    () => `팽창 시간 ${format(1e50)} 보유`,
+    TICK, () => Currency.dilatedTime.gte(1e50), [fixed("dilationExponent", 0.01)]],
+  [59, 6, "팽창 속 영원", "느려진 시간 속에서 영원에 닿았다",
+    () => "시간 팽창 중에 영원",
+    ETERNITY, () => player.dilation.active, [fixed("dtMult", 2)]],
+  [60, 6, "현실을 향해", "현실이 가까워진다",
+    () => `EP ${formatPostBreak("1e1500")} 보유`,
+    TICK, () => Currency.eternityPoints.exponent >= 1500,
+    [dyn("epMult", "팽창 시간의 자릿수 10개마다 EP +×1",
+      () => 1 + Currency.dilatedTime.value.plus(1).log10() / 10)]],
+
+  // 7. 현실
+  [61, 7, "첫 현실", "현실을 처음 넘어섰다",
+    () => "현실 1회",
+    TICK, () => player.realities >= 1, [fixed("rmMult", 1.5)]],
+  [62, 7, "현실 10회", "현실에 익숙해졌다",
+    () => `현실 ${formatInt(10)}회 (현재 ${formatInt(player.realities)})`,
+    TICK, () => player.realities >= 10, [fixed("glyphLevel", 5)]],
+  [63, 7, "블랙홀 발견", "블랙홀이 더 깊어진다",
+    () => "블랙홀 해금",
+    TICK, () => BlackHole(1).isUnlocked, [fixed("blackHolePower", 1.1)]],
+  [64, 7, "현실 100회", "수많은 현실이 기계를 늘린다",
+    () => `현실 ${formatInt(100)}회 (현재 ${formatInt(player.realities)})`,
+    TICK, () => player.realities >= 100,
+    [dyn("rmMult", "현실 횟수의 자릿수 1개마다 현실 기계 +×0.5",
+      () => 1 + Math.log10(player.realities + 1) / 2)]],
+  [65, 7, "빠른 현실", "한 시간 안에 현실을 끝냈다",
+    () => `실제 시간 ${formatInt(1)}시간 안에 현실`,
+    REALITY, () => player.records.thisReality.realTime < 3600000, [fixed("glyphLevel", 15)],
+    () => player.records.thisReality.realTime >= 3600000],
+];
+
+for (const [id, row, name, note, requirement, checkEvent, checkRequirement, parts, hasFailed] of MORE_UPGRADES) {
+  modUpgrades.push({ id, row, name, note, requirement, checkEvent, checkRequirement, hasFailed, parts });
+}

@@ -881,16 +881,18 @@ index d1e5ac4..8beea19 100644
  
    initializeConnections() {
 diff --git a/src/core/player.js b/src/core/player.js
-index eac84b0..8b21e2e 100644
+index eac84b0..f37c13b 100644
 --- a/src/core/player.js
 +++ b/src/core/player.js
-@@ -237,6 +237,12 @@ window.player = {
+@@ -237,6 +237,14 @@ window.player = {
      Eternity: true,
      Infinity: true
    },
 +  // [AD Mod] 모드 업그레이드 해금 상태 (비트마스크, 업그레이드 id = 비트 번호)
 +  adMod: {
++    // 모드 업그레이드 해금 상태 (id 0~31은 upgradeBits, 32 이상은 upgradeBitsExtra에 32개씩)
 +    upgradeBits: 0,
++    upgradeBitsExtra: [],
 +    // 모드 업적 자동 해금 연구의 타이머 (ms)
 +    achTimer: 0,
 +  },
