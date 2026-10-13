@@ -1,0 +1,13 @@
+{
+  "name": "Antimatter Dimensions (AD Mod)",
+  "short_name": "AD Mod",
+  "description": "보너스 보상과 한국어 뉴스가 들어간 Antimatter Dimensions 모드",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    { "src": "icon.png", "sizes": "200x200", "type": "image/png" }
+  ]
+}
